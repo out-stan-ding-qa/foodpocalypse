@@ -2,8 +2,7 @@
 import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { HeartPulse } from "@lucide/vue";
-import { startAuthentication } from "@simplewebauthn/browser";
-import { login, passkeyLoginOptions, passkeyLoginVerify } from "../api";
+import { login } from "../api";
 
 const router = useRouter();
 const email = ref("");
@@ -19,21 +18,6 @@ async function onPasswordLogin() {
     await router.push("/");
   } catch (err) {
     error.value = err instanceof Error ? err.message : "Unable to sign in";
-  } finally {
-    busy.value = false;
-  }
-}
-
-async function onPasskeyLogin() {
-  error.value = "";
-  busy.value = true;
-  try {
-    const { options } = await passkeyLoginOptions(email.value || undefined);
-    const credential = await startAuthentication({ optionsJSON: options });
-    await passkeyLoginVerify(credential);
-    await router.push("/");
-  } catch (err) {
-    error.value = err instanceof Error ? err.message : "Passkey sign-in failed";
   } finally {
     busy.value = false;
   }
@@ -57,9 +41,6 @@ async function onPasskeyLogin() {
       />
       <p v-if="error" class="error">{{ error }}</p>
       <button type="submit" :disabled="busy">Log in</button>
-      <button type="button" class="secondary" :disabled="busy" @click="onPasskeyLogin">
-        Sign in with passkey
-      </button>
     </form>
     <p class="muted center">
       New here?

@@ -10,7 +10,6 @@
   },
   "dependencies": {
     "@lucide/vue": "^1.45.0",
-    "@simplewebauthn/browser": "^13.2.2",
     "tesseract.js": "^7.0.0",
     "vue": "^3.5.41",
     "vue-router": "^4.6.4"

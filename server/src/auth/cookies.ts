@@ -3,7 +3,6 @@ import { config } from "../config.js";
 
 export const ACCESS_COOKIE = "fp_access";
 export const REFRESH_COOKIE = "fp_refresh";
-export const WEBAUTHN_COOKIE = "fp_wa";
 
 function baseCookie(): CookieOptions {
   return {
@@ -31,15 +30,4 @@ export function setAuthCookies(
 export function clearAuthCookies(res: Response): void {
   res.clearCookie(ACCESS_COOKIE, baseCookie());
   res.clearCookie(REFRESH_COOKIE, baseCookie());
-}
-
-export function setWebAuthnCookie(res: Response, nonce: string): void {
-  res.cookie(WEBAUTHN_COOKIE, nonce, {
-    ...baseCookie(),
-    maxAge: 5 * 60 * 1000,
-  });
-}
-
-export function clearWebAuthnCookie(res: Response): void {
-  res.clearCookie(WEBAUTHN_COOKIE, baseCookie());
 }

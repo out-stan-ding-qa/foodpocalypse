@@ -7,30 +7,26 @@ import * as schema from "./schema.js";
 
 type AppDb = ReturnType<typeof drizzle<typeof schema>>;
 
+let sqlite: Database.Database | undefined;
 let db: AppDb | undefined;
 
 export function initDb(): AppDb {
-  fs.mkdirSync(path.dirname(config.sqlitePath), { recursive: true });
-  const sqlite = new Database(config.sqlitePath);
+  if (db) {
+    return db;
+  }
+  if (config.sqlitePath !== ":memory:") {
+    fs.mkdirSync(path.dirname(config.sqlitePath), { recursive: true });
+  }
+  sqlite = new Database(config.sqlitePath);
   sqlite.pragma("journal_mode = WAL");
   sqlite.pragma("foreign_keys = ON");
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
       email_hash TEXT NOT NULL UNIQUE,
-      password_hash TEXT,
+      password_hash TEXT NOT NULL,
       created_at INTEGER NOT NULL
     );
-    CREATE TABLE IF NOT EXISTS webauthn_credentials (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      credential_id TEXT NOT NULL UNIQUE,
-      public_key TEXT NOT NULL,
-      counter INTEGER NOT NULL,
-      created_at INTEGER NOT NULL
-    );
-    CREATE INDEX IF NOT EXISTS idx_webauthn_user ON webauthn_credentials(user_id);
-
     CREATE TABLE IF NOT EXISTS diet_profiles (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -58,11 +54,12 @@ export function initDb(): AppDb {
       source_type TEXT NOT NULL DEFAULT 'manual',
       image_url TEXT,
       notes TEXT NOT NULL DEFAULT '',
-      amazon_url TEXT,
+      listing_url TEXT,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_products_user ON products(user_id);
+    CREATE UNIQUE INDEX IF NOT EXISTS products_user_upc ON products(user_id, upc) WHERE upc IS NOT NULL;
 
     CREATE TABLE IF NOT EXISTS stores (
       id TEXT PRIMARY KEY,
@@ -83,7 +80,8 @@ export function initDb(): AppDb {
       id TEXT PRIMARY KEY,
       product_id TEXT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
       diet_profile_id TEXT NOT NULL REFERENCES diet_profiles(id) ON DELETE CASCADE,
-      recommendation TEXT NOT NULL,
+      rating TEXT,
+      recommendation TEXT,
       updated_at INTEGER NOT NULL,
       UNIQUE (product_id, diet_profile_id)
     );
@@ -116,4 +114,11 @@ export function getDb(): AppDb {
     throw new Error("Database has not been initialized");
   }
   return db;
+}
+
+export function resetDb(): void {
+  if (!sqlite) {
+    throw new Error("Database has not been initialized");
+  }
+  sqlite.exec("DELETE FROM users");
 }

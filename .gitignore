@@ -1,6 +1,8 @@
 node_modules
 dist
 .env
+.env.local
+.env.production
 *.sqlite
 *.sqlite-journal
 *.sqlite-wal

@@ -78,8 +78,8 @@ function unused(diet: DietProfile) {
 <template>
   <div class="stack">
     <p class="muted">
-      Each profile is a health condition plus the nutrients you want to watch. Toggle a profile
-      on to use it on product nutrition and rating bubbles.
+      Each Diet profile is a named set of Tracked nutrients. Toggle it on to use it on Product
+      nutrition and Rating bubbles.
     </p>
     <p v-if="error" class="error">{{ error }}</p>
 
@@ -127,7 +127,7 @@ function unused(diet: DietProfile) {
     </div>
 
     <form class="card form" @submit.prevent="onCreate">
-      <h3>Add New Condition</h3>
+      <h3>Add Diet profile</h3>
       <input v-model="name" required placeholder="e.g. Celiac / Gluten-Free" />
       <p class="label">Tracked nutrients</p>
       <div class="chips">
@@ -142,7 +142,7 @@ function unused(diet: DietProfile) {
           {{ nutrient }}
         </button>
       </div>
-      <button type="submit"><Plus :size="16" /> Add New Condition</button>
+      <button type="submit"><Plus :size="16" /> Add Diet profile</button>
     </form>
   </div>
 </template>

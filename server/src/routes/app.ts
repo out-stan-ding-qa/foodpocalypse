@@ -13,7 +13,9 @@ import {
   shoppingLists,
   stores,
 } from "../db/schema.js";
+import { isTrafficLight, visibleMark } from "../domain/mark.js";
 import { isTrackedNutrient, TRACKED_NUTRIENTS } from "../domain/nutrients.js";
+import { isValidStoreLocation } from "../domain/storeLocation.js";
 import {
   extractUpcFromText,
   guessProductNameFromText,
@@ -21,11 +23,9 @@ import {
   normalizeUpc,
   parseNutritionFromText,
 } from "../ingestion/ocr.js";
-import { amazonSearchUrl, lookupByUpc } from "../ingestion/openFoodFacts.js";
+import { lookupByUpc } from "../ingestion/openFoodFacts.js";
 
 export const appRouter = Router();
-
-const RATINGS = new Set(["green", "yellow", "red"]);
 
 function asString(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
@@ -97,7 +97,7 @@ appRouter.post("/products/upc-lookup", async (req, res) => {
     res.status(404).json({ error: "Product not found" });
     return;
   }
-  res.json({ result: { ...result, upc, amazonUrl: amazonSearchUrl(result.name) } });
+  res.json({ result: { ...result, upc, listingUrl: null } });
 });
 
 appRouter.post("/products/photo-parse", async (req, res) => {
@@ -115,7 +115,6 @@ appRouter.post("/products/photo-parse", async (req, res) => {
   let brand: string | null = null;
   let ingredients: string | null = null;
   let imageUrl: string | null = thumbnailDataUrl || null;
-  let amazonUrl: string | null = null;
   let nutrition: Record<string, string | number | null> = extractedText
     ? parseNutritionFromText(extractedText)
     : {};
@@ -130,7 +129,6 @@ appRouter.post("/products/photo-parse", async (req, res) => {
       ingredients = upcResult.ingredients || null;
       imageUrl = upcResult.imageUrl || imageUrl;
       nutrition = { ...nutrition, ...upcResult.nutrition };
-      amazonUrl = amazonSearchUrl(upcResult.name);
       confidence = 90;
     }
   }
@@ -146,9 +144,6 @@ appRouter.post("/products/photo-parse", async (req, res) => {
     sources.push("ocr");
     confidence = Math.max(confidence, 60);
   }
-  if (!amazonUrl && name) {
-    amazonUrl = amazonSearchUrl(name);
-  }
 
   res.json({
     result: {
@@ -158,7 +153,7 @@ appRouter.post("/products/photo-parse", async (req, res) => {
       ingredients,
       nutrition,
       thumbnailUrl: imageUrl,
-      amazonUrl,
+      listingUrl: null,
       confidence,
       sources,
     },
@@ -196,7 +191,7 @@ appRouter.post("/products", async (req, res) => {
   }
   const name = asString(req.body?.name);
   if (!name) {
-    res.status(400).json({ error: "Food name is required" });
+    res.status(400).json({ error: "Product name is required" });
     return;
   }
   const now = Date.now();
@@ -204,26 +199,36 @@ appRouter.post("/products", async (req, res) => {
     req.body?.nutrition && typeof req.body.nutrition === "object"
       ? req.body.nutrition
       : {};
-  const amazonUrl = asString(req.body?.amazonUrl) || amazonSearchUrl(name);
+  const listingUrl = asString(req.body?.listingUrl) || null;
+  const upc = asString(req.body?.upc) || null;
   const id = randomUUID();
-  getDb()
-    .insert(products)
-    .values({
-      id,
-      userId: user.sub,
-      name,
-      upc: asString(req.body?.upc) || null,
-      brand: asString(req.body?.brand) || null,
-      ingredients: asString(req.body?.ingredients),
-      nutritionJson: JSON.stringify(nutrition),
-      sourceType: asString(req.body?.sourceType) || "manual",
-      imageUrl: asString(req.body?.imageUrl) || null,
-      notes: asString(req.body?.notes),
-      amazonUrl,
-      createdAt: now,
-      updatedAt: now,
-    })
-    .run();
+  try {
+    getDb()
+      .insert(products)
+      .values({
+        id,
+        userId: user.sub,
+        name,
+        upc,
+        brand: asString(req.body?.brand) || null,
+        ingredients: asString(req.body?.ingredients),
+        nutritionJson: JSON.stringify(nutrition),
+        sourceType: asString(req.body?.sourceType) || "manual",
+        imageUrl: asString(req.body?.imageUrl) || null,
+        notes: asString(req.body?.notes),
+        listingUrl,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "";
+    if (message.includes("UNIQUE") || message.includes("unique")) {
+      res.status(400).json({ error: "A product with this UPC already exists" });
+      return;
+    }
+    throw err;
+  }
   const created = getDb().select().from(products).where(eq(products.id, id)).get();
   res.status(201).json({ product: created ? serializeProduct(created) : null });
 });
@@ -262,10 +267,23 @@ appRouter.get("/products/:id", async (req, res) => {
     product: serializeProduct(product),
     stores: userStores.filter((store) => linkedStoreIds.includes(store.id)),
     unlinkedStores: userStores.filter((store) => !linkedStoreIds.includes(store.id)),
-    ratings: ratings.map((rating) => ({
-      ...rating,
-      dietProfile: profiles.find((profile) => profile.id === rating.dietProfileId) ?? null,
-    })),
+    ratings: ratings
+      .map((row) => {
+        const dietProfile = profiles.find((profile) => profile.id === row.dietProfileId) ?? null;
+        const rating = row.rating && isTrafficLight(row.rating) ? row.rating : null;
+        const recommendation =
+          row.recommendation && isTrafficLight(row.recommendation)
+            ? row.recommendation
+            : null;
+        return {
+          dietProfileId: row.dietProfileId,
+          rating,
+          recommendation,
+          mark: visibleMark(rating, recommendation),
+          dietProfile,
+        };
+      })
+      .filter((row) => row.dietProfile?.active && row.mark),
     dietProfiles: profiles.map((profile) => ({
       ...profile,
       active: Boolean(profile.active),
@@ -286,12 +304,12 @@ appRouter.patch("/products/:id", async (req, res) => {
     res.status(404).json({ error: "Product not found" });
     return;
   }
-  const amazonUrl =
-    req.body?.amazonUrl === null ? null : asString(req.body?.amazonUrl) || product.amazonUrl;
+  const listingUrl =
+    req.body?.listingUrl === null ? null : asString(req.body?.listingUrl) || product.listingUrl;
   getDb()
     .update(products)
     .set({
-      amazonUrl,
+      listingUrl,
       updatedAt: Date.now(),
     })
     .where(eq(products.id, product.id))
@@ -331,7 +349,7 @@ appRouter.post("/products/:id/ratings", async (req, res) => {
   }
   const product = await ownedProduct(user.sub, String(req.params.id));
   const dietProfileId = asString(req.body?.dietProfileId);
-  const recommendation = asString(req.body?.recommendation) || "yellow";
+  const ratingValue = asString(req.body?.rating) || "yellow";
   const profile = getDb()
     .select()
     .from(dietProfiles)
@@ -341,8 +359,8 @@ appRouter.post("/products/:id/ratings", async (req, res) => {
     res.status(404).json({ error: "Not found" });
     return;
   }
-  if (!RATINGS.has(recommendation)) {
-    res.status(400).json({ error: "Invalid recommendation" });
+  if (!isTrafficLight(ratingValue)) {
+    res.status(400).json({ error: "Invalid rating" });
     return;
   }
   const existing = getDb()
@@ -358,21 +376,36 @@ appRouter.post("/products/:id/ratings", async (req, res) => {
   if (existing) {
     getDb()
       .update(productDietRatings)
-      .set({ recommendation, updatedAt: Date.now() })
+      .set({ rating: ratingValue, updatedAt: Date.now() })
       .where(eq(productDietRatings.id, existing.id))
       .run();
-    res.json({ rating: { ...existing, recommendation } });
+    const recommendation =
+      existing.recommendation && isTrafficLight(existing.recommendation)
+        ? existing.recommendation
+        : null;
+    res.json({
+      rating: ratingValue,
+      recommendation,
+      mark: visibleMark(ratingValue, recommendation),
+    });
     return;
   }
-  const rating = {
-    id: randomUUID(),
-    productId: product.id,
-    dietProfileId: profile.id,
-    recommendation,
-    updatedAt: Date.now(),
-  };
-  getDb().insert(productDietRatings).values(rating).run();
-  res.status(201).json({ rating });
+  getDb()
+    .insert(productDietRatings)
+    .values({
+      id: randomUUID(),
+      productId: product.id,
+      dietProfileId: profile.id,
+      rating: ratingValue,
+      recommendation: null,
+      updatedAt: Date.now(),
+    })
+    .run();
+  res.status(201).json({
+    rating: ratingValue,
+    recommendation: null,
+    mark: visibleMark(ratingValue, null),
+  });
 });
 
 appRouter.get("/stores", async (req, res) => {
@@ -396,8 +429,8 @@ appRouter.post("/stores", async (req, res) => {
   }
   const name = asString(req.body?.name);
   const address = asString(req.body?.address);
-  if (!name || !address) {
-    res.status(400).json({ error: "Store name and address are required" });
+  if (!name || !isValidStoreLocation(address)) {
+    res.status(400).json({ error: "Store name and location are required" });
     return;
   }
   const store = {
@@ -442,7 +475,7 @@ appRouter.post("/diets", async (req, res) => {
   }
   const name = asString(req.body?.name);
   if (!name) {
-    res.status(400).json({ error: "Condition name is required" });
+    res.status(400).json({ error: "Diet profile name is required" });
     return;
   }
   const selected = Array.isArray(req.body?.nutrients)

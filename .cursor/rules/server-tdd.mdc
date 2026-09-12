@@ -1,0 +1,14 @@
+---
+description: Test-first for server domain functions and HTTP routes
+globs: server/src/domain/**/*.ts,server/src/routes/**/*.ts
+alwaysApply: false
+---
+
+# TDD for domain and routes
+
+Production changes here start from a failing test in `server/test/`.
+
+1. Write the test. Confirm it is red on current code.
+2. Change this production file until `npm test -w server` is green.
+
+One behavior per cycle. New files in these directories follow the same loop.

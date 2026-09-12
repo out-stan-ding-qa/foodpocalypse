@@ -14,8 +14,8 @@ import {
   updateProduct,
   type DietProfile,
   type Product,
-  type Recommendation,
   type Store,
+  type TrafficLight,
 } from "../app-api";
 
 const route = useRoute();
@@ -23,15 +23,21 @@ const product = ref<Product | null>(null);
 const stores = ref<Store[]>([]);
 const unlinked = ref<Store[]>([]);
 const ratings = ref<
-  Array<{ dietProfileId: string; recommendation: Recommendation; dietProfile: DietProfile | null }>
+  Array<{
+    dietProfileId: string;
+    rating: TrafficLight | null;
+    recommendation: TrafficLight | null;
+    mark: TrafficLight | null;
+    dietProfile: DietProfile | null;
+  }>
 >([]);
 const diets = ref<DietProfile[]>([]);
 const error = ref("");
-const amazonUrl = ref("");
+const listingUrl = ref("");
 const foodWeight = ref(100);
 const showAll = ref(false);
 
-const nextColor: Record<Recommendation, Recommendation> = {
+const nextColor: Record<TrafficLight, TrafficLight> = {
   green: "yellow",
   yellow: "red",
   red: "green",
@@ -63,7 +69,9 @@ const visibleNutrients = computed(() => {
 });
 
 const unusedDiets = computed(() =>
-  diets.value.filter((diet) => !ratings.value.some((rating) => rating.dietProfileId === diet.id)),
+  diets.value.filter(
+    (diet) => diet.active && !ratings.value.some((rating) => rating.dietProfileId === diet.id),
+  ),
 );
 
 async function load() {
@@ -74,7 +82,7 @@ async function load() {
   unlinked.value = data.unlinkedStores;
   ratings.value = data.ratings;
   diets.value = data.dietProfiles;
-  amazonUrl.value = data.product.amazonUrl ?? "";
+  listingUrl.value = data.product.listingUrl ?? "";
 }
 
 onMounted(async () => {
@@ -85,7 +93,7 @@ onMounted(async () => {
   }
 });
 
-async function cycle(dietProfileId: string, current: Recommendation) {
+async function cycle(dietProfileId: string, current: TrafficLight) {
   await setProductRating(String(route.params.id), dietProfileId, nextColor[current]);
   await load();
 }
@@ -100,8 +108,8 @@ async function addStore(storeId: string) {
   await load();
 }
 
-async function saveAmazon() {
-  await updateProduct(String(route.params.id), { amazonUrl: amazonUrl.value || null });
+async function saveListing() {
+  await updateProduct(String(route.params.id), { listingUrl: listingUrl.value || null });
   await load();
 }
 </script>
@@ -121,10 +129,11 @@ async function saveAmazon() {
           v-for="rating in ratings"
           :key="rating.dietProfileId"
           class="bubble"
-          :class="rating.recommendation"
+          :class="rating.mark"
           type="button"
           :title="'Tap to change color'"
-          @click="cycle(rating.dietProfileId, rating.recommendation)"
+          :disabled="!rating.mark"
+          @click="rating.mark && cycle(rating.dietProfileId, rating.mark)"
         >
           {{ rating.dietProfile?.name || "Diet" }}
         </button>
@@ -161,13 +170,13 @@ async function saveAmazon() {
     </div>
 
     <div class="card">
-      <h3><MapPin :size="16" /> Amazon</h3>
-      <form class="inline" @submit.prevent="saveAmazon">
-        <input v-model="amazonUrl" type="url" placeholder="Amazon product or search URL" />
+      <h3><MapPin :size="16" /> Listing</h3>
+      <form class="inline" @submit.prevent="saveListing">
+        <input v-model="listingUrl" type="url" placeholder="Product page or search URL" />
         <button type="submit">Save</button>
       </form>
-      <a v-if="product.amazonUrl" :href="product.amazonUrl" target="_blank" rel="noreferrer">
-        Open Amazon
+      <a v-if="product.listingUrl" :href="product.listingUrl" target="_blank" rel="noreferrer">
+        Open listing
       </a>
     </div>
 

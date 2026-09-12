@@ -3,18 +3,7 @@ import { integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core
 export const users = sqliteTable("users", {
   id: text("id").primaryKey(),
   emailHash: text("email_hash").notNull().unique(),
-  passwordHash: text("password_hash"),
-  createdAt: integer("created_at").notNull(),
-});
-
-export const webauthnCredentials = sqliteTable("webauthn_credentials", {
-  id: text("id").primaryKey(),
-  userId: text("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  credentialId: text("credential_id").notNull().unique(),
-  publicKey: text("public_key").notNull(),
-  counter: integer("counter").notNull(),
+  passwordHash: text("password_hash").notNull(),
   createdAt: integer("created_at").notNull(),
 });
 
@@ -36,23 +25,29 @@ export const dietProfileNutrients = sqliteTable("diet_profile_nutrients", {
   nutrient: text("nutrient").notNull(),
 });
 
-export const products = sqliteTable("products", {
-  id: text("id").primaryKey(),
-  userId: text("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  name: text("name").notNull(),
-  upc: text("upc"),
-  brand: text("brand"),
-  ingredients: text("ingredients").notNull().default(""),
-  nutritionJson: text("nutrition_json").notNull().default("{}"),
-  sourceType: text("source_type").notNull().default("manual"),
-  imageUrl: text("image_url"),
-  notes: text("notes").notNull().default(""),
-  amazonUrl: text("amazon_url"),
-  createdAt: integer("created_at").notNull(),
-  updatedAt: integer("updated_at").notNull(),
-});
+export const products = sqliteTable(
+  "products",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    upc: text("upc"),
+    brand: text("brand"),
+    ingredients: text("ingredients").notNull().default(""),
+    nutritionJson: text("nutrition_json").notNull().default("{}"),
+    sourceType: text("source_type").notNull().default("manual"),
+    imageUrl: text("image_url"),
+    notes: text("notes").notNull().default(""),
+    listingUrl: text("listing_url"),
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (table) => ({
+    userUpc: uniqueIndex("products_user_upc").on(table.userId, table.upc),
+  }),
+);
 
 export const stores = sqliteTable("stores", {
   id: text("id").primaryKey(),
@@ -89,7 +84,8 @@ export const productDietRatings = sqliteTable(
     dietProfileId: text("diet_profile_id")
       .notNull()
       .references(() => dietProfiles.id, { onDelete: "cascade" }),
-    recommendation: text("recommendation").notNull(),
+    rating: text("rating"),
+    recommendation: text("recommendation"),
     updatedAt: integer("updated_at").notNull(),
   },
   (table) => ({

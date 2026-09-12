@@ -27,7 +27,7 @@ onMounted(async () => {
     <div class="hero">
       <div>
         <h2>Hello, {{ greeting() }}</h2>
-        <p>Ready to plan your meals?</p>
+        <p>Ready to track products and shop?</p>
       </div>
       <RouterLink class="avatar" to="/account" aria-label="Account">
         <User :size="20" />

@@ -43,13 +43,13 @@ async function onAdd() {
         <p class="muted"><MapPin :size="12" /> {{ store.address }}</p>
       </div>
     </div>
-    <p v-if="!stores.length" class="muted">No stores yet. Add a real store with its address.</p>
+    <p v-if="!stores.length" class="muted">No stores yet. Add a shop with a street address or a retailer URL.</p>
 
     <form class="card form" @submit.prevent="onAdd">
-      <h3>Add a Custom Store</h3>
-      <p class="muted">Amazon links live on each product. Stores here need a street address.</p>
-      <input v-model="name" required placeholder="Store Name (e.g. Local Market)" />
-      <input v-model="address" required placeholder="Full Address" />
+      <h3>Add a Store</h3>
+      <p class="muted">A Store is a place you shop: a street address or an https URL. Product listings live on each Product.</p>
+      <input v-model="name" required placeholder="Store name (e.g. Local Market)" />
+      <input v-model="address" required placeholder="Street address or https://…" />
       <p v-if="error" class="error">{{ error }}</p>
       <button type="submit"><Plus :size="16" /> Add Store</button>
     </form>

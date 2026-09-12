@@ -1,8 +1,3 @@
-import type {
-  PublicKeyCredentialCreationOptionsJSON,
-  PublicKeyCredentialRequestOptionsJSON,
-} from "@simplewebauthn/browser";
-
 export type Me = { id: string; email?: string };
 
 async function parseError(res: Response): Promise<string> {
@@ -71,41 +66,4 @@ export function login(email: string, password: string) {
 
 export function logout() {
   return api<void>("/api/auth/logout", { method: "POST" });
-}
-
-export function passkeyRegisterOptions(body: {
-  email?: string;
-  password?: string;
-}) {
-  return api<{ options: PublicKeyCredentialCreationOptionsJSON }>(
-    "/api/auth/passkey/register/options",
-    {
-      method: "POST",
-      body: JSON.stringify(body),
-    },
-  );
-}
-
-export function passkeyRegisterVerify(credential: unknown) {
-  return api<{ id: string }>("/api/auth/passkey/register/verify", {
-    method: "POST",
-    body: JSON.stringify(credential),
-  });
-}
-
-export function passkeyLoginOptions(email?: string) {
-  return api<{ options: PublicKeyCredentialRequestOptionsJSON }>(
-    "/api/auth/passkey/login/options",
-    {
-      method: "POST",
-      body: JSON.stringify(email ? { email } : {}),
-    },
-  );
-}
-
-export function passkeyLoginVerify(credential: unknown) {
-  return api<{ id: string }>("/api/auth/passkey/login/verify", {
-    method: "POST",
-    body: JSON.stringify(credential),
-  });
 }

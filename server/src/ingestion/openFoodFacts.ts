@@ -71,6 +71,3 @@ export async function lookupByUpc(upc: string): Promise<UpcLookupResult | null> 
   };
 }
 
-export function amazonSearchUrl(name: string): string {
-  return `https://www.amazon.com/s?k=${encodeURIComponent(name)}`;
-}

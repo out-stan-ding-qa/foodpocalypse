@@ -1,6 +1,6 @@
 import { api } from "./api";
 
-export type Recommendation = "green" | "yellow" | "red";
+export type TrafficLight = "green" | "yellow" | "red";
 
 export type Product = {
   id: string;
@@ -12,9 +12,14 @@ export type Product = {
   sourceType: string;
   imageUrl: string | null;
   notes: string;
-  amazonUrl: string | null;
+  listingUrl: string | null;
   storeIds?: string[];
-  ratings?: Array<{ dietProfileId: string; recommendation: Recommendation }>;
+  ratings?: Array<{
+    dietProfileId: string;
+    rating: TrafficLight | null;
+    recommendation: TrafficLight | null;
+    mark: TrafficLight | null;
+  }>;
 };
 
 export type Store = { id: string; name: string; address: string };
@@ -47,7 +52,7 @@ export type UpcResult = {
   ingredients: string;
   nutrition: Record<string, unknown>;
   upc: string;
-  amazonUrl: string;
+  listingUrl: string | null;
 };
 
 export type PhotoResult = {
@@ -57,7 +62,7 @@ export type PhotoResult = {
   ingredients: string | null;
   nutrition: Record<string, unknown>;
   thumbnailUrl: string | null;
-  amazonUrl: string | null;
+  listingUrl: string | null;
   confidence: number;
   sources: string[];
 };
@@ -84,14 +89,16 @@ export function getProduct(id: string) {
     unlinkedStores: Store[];
     ratings: Array<{
       dietProfileId: string;
-      recommendation: Recommendation;
+      rating: TrafficLight | null;
+      recommendation: TrafficLight | null;
+      mark: TrafficLight | null;
       dietProfile: DietProfile | null;
     }>;
     dietProfiles: DietProfile[];
   }>(`/api/products/${id}`);
 }
 
-export function updateProduct(id: string, body: { amazonUrl?: string | null }) {
+export function updateProduct(id: string, body: { listingUrl?: string | null }) {
   return api<{ product: Product }>(`/api/products/${id}`, {
     method: "PATCH",
     body: JSON.stringify(body),
@@ -108,13 +115,17 @@ export function linkStore(productId: string, storeId: string) {
 export function setProductRating(
   productId: string,
   dietProfileId: string,
-  recommendation: Recommendation,
+  rating: TrafficLight,
 ) {
-  return api<{ rating: { recommendation: Recommendation } }>(
+  return api<{
+    rating: TrafficLight;
+    recommendation: TrafficLight | null;
+    mark: TrafficLight | null;
+  }>(
     `/api/products/${productId}/ratings`,
     {
       method: "POST",
-      body: JSON.stringify({ dietProfileId, recommendation }),
+      body: JSON.stringify({ dietProfileId, rating }),
     },
   );
 }

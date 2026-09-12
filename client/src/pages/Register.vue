@@ -2,12 +2,7 @@
 import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { HeartPulse } from "@lucide/vue";
-import { startRegistration } from "@simplewebauthn/browser";
-import {
-  passkeyRegisterOptions,
-  passkeyRegisterVerify,
-  register,
-} from "../api";
+import { register } from "../api";
 
 const router = useRouter();
 const email = ref("");
@@ -27,24 +22,6 @@ async function onPasswordRegister() {
     busy.value = false;
   }
 }
-
-async function onPasskeyRegister() {
-  error.value = "";
-  busy.value = true;
-  try {
-    const { options } = await passkeyRegisterOptions({
-      email: email.value,
-      password: password.value || undefined,
-    });
-    const credential = await startRegistration({ optionsJSON: options });
-    await passkeyRegisterVerify(credential);
-    await router.push("/");
-  } catch (err) {
-    error.value = err instanceof Error ? err.message : "Passkey registration failed";
-  } finally {
-    busy.value = false;
-  }
-}
 </script>
 
 <template>
@@ -53,7 +30,7 @@ async function onPasskeyRegister() {
       <HeartPulse :size="32" color="white" />
     </div>
     <h1>Create account</h1>
-    <p class="lede">Email/password and optional passkey — same auth as today.</p>
+    <p class="lede">Sign in with your Email and Password on any device.</p>
     <form class="form" @submit.prevent="onPasswordRegister">
       <input v-model="email" type="email" autocomplete="username" required placeholder="Email" />
       <input
@@ -61,13 +38,11 @@ async function onPasskeyRegister() {
         type="password"
         autocomplete="new-password"
         minlength="8"
+        required
         placeholder="Password (8+ characters)"
       />
       <p v-if="error" class="error">{{ error }}</p>
       <button type="submit" :disabled="busy">Create account</button>
-      <button type="button" class="secondary" :disabled="busy" @click="onPasskeyRegister">
-        Register with passkey
-      </button>
     </form>
     <p class="muted center">
       Already have an account?

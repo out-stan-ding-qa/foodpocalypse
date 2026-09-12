@@ -87,7 +87,7 @@ async function saveUpc() {
       imageUrl: upcResult.value.imageUrl,
       sourceType: "upc",
       nutrition: upcResult.value.nutrition,
-      amazonUrl: upcResult.value.amazonUrl,
+      listingUrl: upcResult.value.listingUrl,
     });
     upcStatus.value = "Saved to your products.";
   } catch (err) {
@@ -131,7 +131,7 @@ async function onPhoto() {
 
 async function savePhoto() {
   if (!photoResult.value || !photoName.value.trim()) {
-    photoStatus.value = "Food name is required";
+    photoStatus.value = "Product name is required";
     return;
   }
   busy.value = true;
@@ -144,7 +144,7 @@ async function savePhoto() {
       sourceType: "photo",
       imageUrl: photoResult.value.thumbnailUrl ?? undefined,
       nutrition: photoResult.value.nutrition ?? {},
-      amazonUrl: photoResult.value.amazonUrl ?? undefined,
+      listingUrl: photoResult.value.listingUrl ?? undefined,
       notes: `Saved from photo. Sources: ${photoResult.value.sources.join(", ") || "unknown"}`,
     });
     photoStatus.value = "Saved to your products.";
@@ -184,7 +184,7 @@ async function onFile(event: Event) {
         <p><strong>{{ upcResult.name }}</strong></p>
         <p class="muted">{{ upcResult.brand || "No brand" }}</p>
         <pre>{{ JSON.stringify(upcResult.nutrition, null, 2) }}</pre>
-        <button type="button" :disabled="busy" @click="saveUpc">Save Food</button>
+        <button type="button" :disabled="busy" @click="saveUpc">Save Product</button>
         <p v-if="upcStatus" class="muted">{{ upcStatus }}</p>
       </div>
     </form>
@@ -199,8 +199,8 @@ async function onFile(event: Event) {
         <p><strong>{{ photoResult.name || "Unknown" }}</strong></p>
         <p class="muted">UPC: {{ photoResult.upc || "Not found" }} · {{ photoResult.sources.join(", ") }}</p>
         <pre>{{ JSON.stringify(photoResult.nutrition, null, 2) }}</pre>
-        <input v-model="photoName" placeholder="Food name for save" />
-        <button type="button" :disabled="busy" @click="savePhoto">Save Food</button>
+        <input v-model="photoName" placeholder="Product name for save" />
+        <button type="button" :disabled="busy" @click="savePhoto">Save Product</button>
         <p v-if="photoStatus" class="muted">{{ photoStatus }}</p>
       </div>
     </form>

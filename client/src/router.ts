@@ -37,7 +37,7 @@ const router = createRouter({
       component: ShoppingHistory,
       meta: { requiresAuth: true, title: "Past Lists" },
     },
-    { path: "/diets", component: Diets, meta: { requiresAuth: true, title: "Dietary Profiles" } },
+    { path: "/diets", component: Diets, meta: { requiresAuth: true, title: "Diet Profiles" } },
   ],
 });
 
