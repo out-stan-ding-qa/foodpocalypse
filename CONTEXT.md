@@ -17,12 +17,8 @@ The address this User signs in with. Every User has one. It is a lookup key, not
 _Avoid_: Username, account name
 
 **Password**:
-The required secret this User uses to sign in on any device.
-_Avoid_: Passcode, PIN
-
-**Passkey**:
-An optional extra credential this User may add for signing in. A User may have many. It does not replace Email or Password.
-_Avoid_: WebAuthn credential, credential (when you mean this)
+The required secret this User uses to sign in on any device. Sign-in is Email and Password only.
+_Avoid_: Passcode, PIN, Passkey
 
 ### Catalog
 
