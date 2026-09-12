@@ -1,0 +1,12 @@
+node_modules
+dist
+.env
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+server/data
+.DS_Store
+*.log
+.vscode
+.idea
