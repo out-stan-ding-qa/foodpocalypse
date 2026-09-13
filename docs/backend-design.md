@@ -61,7 +61,10 @@ server/src/
   auth/cookies.ts       cookie flags and names
   auth/session.ts       issue both tokens
   appEnv.ts             local | production | test
-  domain/               glossary rules (mark, store location, nutrients)
+  domain/               glossary rules (mark, store location, UPC)
+
+shared/src/
+  nutrients.ts          Tracked nutrient list (@foodpocalypse/domain)
 ```
 
 ## Data model

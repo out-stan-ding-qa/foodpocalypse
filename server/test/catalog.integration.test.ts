@@ -3,7 +3,7 @@ import { after, afterEach, before, beforeEach, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { createApp } from "../src/app.js";
 import { resetDb } from "../src/db/index.js";
-import { startTestServer } from "./http.js";
+import { registerUser, startTestServer } from "./http.js";
 
 const realFetch = globalThis.fetch;
 
@@ -15,14 +15,6 @@ function stubOpenFoodFacts(handler: typeof fetch) {
     }
     return realFetch(input, init);
   };
-}
-
-async function register(request: Awaited<ReturnType<typeof startTestServer>>["request"]) {
-  await request("/api/auth/register", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email: "shopper@example.com", password: "correct-horse" }),
-  });
 }
 
 describe("catalog HTTP", () => {
@@ -40,7 +32,7 @@ describe("catalog HTTP", () => {
   beforeEach(async () => {
     resetDb();
     server.jar.clear();
-    await register(server.request);
+    await registerUser(server.request);
   });
 
   afterEach(() => {

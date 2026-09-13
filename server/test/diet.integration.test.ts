@@ -4,15 +4,7 @@ import assert from "node:assert/strict";
 import { createApp } from "../src/app.js";
 import { getDb, resetDb } from "../src/db/index.js";
 import { productDietRatings } from "../src/db/schema.js";
-import { startTestServer } from "./http.js";
-
-async function register(request: Awaited<ReturnType<typeof startTestServer>>["request"]) {
-  await request("/api/auth/register", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email: "shopper@example.com", password: "correct-horse" }),
-  });
-}
+import { registerUser, startTestServer } from "./http.js";
 
 describe("diet HTTP", () => {
   const app = createApp();
@@ -29,7 +21,7 @@ describe("diet HTTP", () => {
   beforeEach(async () => {
     resetDb();
     server.jar.clear();
-    await register(server.request);
+    await registerUser(server.request);
   });
 
   it("stores a User Rating separately from Recommendation and shows the Rating", async () => {

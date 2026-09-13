@@ -3,7 +3,7 @@ import { after, before, beforeEach, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { createApp } from "../src/app.js";
 import { resetDb } from "../src/db/index.js";
-import { startTestServer } from "./http.js";
+import { registerUser, startTestServer } from "./http.js";
 
 type Credentials = { email: string; password: string };
 type Fixture = { store: { id: string }; product: { id: string }; dietProfile: { id: string } };
@@ -34,7 +34,7 @@ describe("cross-User isolation", () => {
   // and one archived Shopping list. Every table the read routes join through.
   async function seed(who: Credentials, tag: string, nutrient: string): Promise<Fixture> {
     server.jar.clear();
-    assert.equal((await post("/api/auth/register", who)).status, 201);
+    assert.equal((await registerUser(server.request, who)).status, 201);
 
     const storeRes = await post("/api/stores", { name: `${tag} Market`, address: `1 ${tag} St` });
     assert.equal(storeRes.status, 201);

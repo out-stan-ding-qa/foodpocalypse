@@ -36,6 +36,22 @@ export class CookieJar {
   }
 }
 
+export type TestRequest = Awaited<ReturnType<typeof startTestServer>>["request"];
+
+export async function registerUser(
+  request: TestRequest,
+  body: { email?: string; password?: string } = {},
+) {
+  return request("/api/auth/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      email: body.email ?? "shopper@example.com",
+      password: body.password ?? "correct-horse",
+    }),
+  });
+}
+
 export async function startTestServer(app: Express) {
   const server = http.createServer(app);
   await new Promise<void>((resolve) => {

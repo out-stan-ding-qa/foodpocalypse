@@ -3,7 +3,7 @@ import { after, before, beforeEach, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { createApp } from "../src/app.js";
 import { resetDb } from "../src/db/index.js";
-import { startTestServer } from "./http.js";
+import { registerUser, startTestServer } from "./http.js";
 
 describe("shopping HTTP", () => {
   const app = createApp();
@@ -35,10 +35,7 @@ describe("shopping HTTP", () => {
   beforeEach(async () => {
     resetDb();
     server.jar.clear();
-    await post("/api/auth/register", {
-      email: "shopper@example.com",
-      password: "correct-horse",
-    });
+    await registerUser(server.request);
   });
 
   it("starts with an empty current Shopping list", async () => {

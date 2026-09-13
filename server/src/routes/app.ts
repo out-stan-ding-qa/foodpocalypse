@@ -14,7 +14,7 @@ import {
   stores,
 } from "../db/schema.js";
 import { isTrafficLight, visibleMark } from "../domain/mark.js";
-import { isTrackedNutrient } from "../domain/nutrients.js";
+import { isTrackedNutrient } from "@foodpocalypse/domain/nutrients";
 import { isValidStoreLocation } from "../domain/storeLocation.js";
 import { parseUpc } from "../domain/upc.js";
 import { lookupByUpc } from "../ingestion/openFoodFacts.js";
@@ -46,6 +46,14 @@ async function ownedProduct(userId: string, productId: string) {
     .select()
     .from(products)
     .where(and(eq(products.id, productId), eq(products.userId, userId)))
+    .get();
+}
+
+function ownedDietProfile(userId: string, profileId: string) {
+  return getDb()
+    .select()
+    .from(dietProfiles)
+    .where(and(eq(dietProfiles.id, profileId), eq(dietProfiles.userId, userId)))
     .get();
 }
 
@@ -318,11 +326,7 @@ appRouter.post("/products/:id/ratings", async (req, res) => {
   const product = await ownedProduct(user.sub, String(req.params.id));
   const dietProfileId = asString(req.body?.dietProfileId);
   const ratingValue = asString(req.body?.rating) || "yellow";
-  const profile = getDb()
-    .select()
-    .from(dietProfiles)
-    .where(and(eq(dietProfiles.id, dietProfileId), eq(dietProfiles.userId, user.sub)))
-    .get();
+  const profile = ownedDietProfile(user.sub, dietProfileId);
   if (!product || !profile) {
     res.status(404).json({ error: "Not found" });
     return;
@@ -476,11 +480,7 @@ appRouter.patch("/diet-profiles/:id", async (req, res) => {
     return;
   }
   const db = getDb();
-  const profile = db
-    .select()
-    .from(dietProfiles)
-    .where(and(eq(dietProfiles.id, String(req.params.id)), eq(dietProfiles.userId, user.sub)))
-    .get();
+  const profile = ownedDietProfile(user.sub, String(req.params.id));
   if (!profile) {
     res.status(404).json({ error: "Diet profile not found" });
     return;
@@ -506,11 +506,7 @@ appRouter.post("/diet-profiles/:id/nutrients", async (req, res) => {
     return;
   }
   const db = getDb();
-  const profile = db
-    .select()
-    .from(dietProfiles)
-    .where(and(eq(dietProfiles.id, String(req.params.id)), eq(dietProfiles.userId, user.sub)))
-    .get();
+  const profile = ownedDietProfile(user.sub, String(req.params.id));
   if (!profile) {
     res.status(404).json({ error: "Diet profile not found" });
     return;
@@ -540,11 +536,7 @@ appRouter.delete("/diet-profiles/:id/nutrients/:nutrient", async (req, res) => {
   }
   const nutrient = decodeURIComponent(String(req.params.nutrient));
   const db = getDb();
-  const profile = db
-    .select()
-    .from(dietProfiles)
-    .where(and(eq(dietProfiles.id, String(req.params.id)), eq(dietProfiles.userId, user.sub)))
-    .get();
+  const profile = ownedDietProfile(user.sub, String(req.params.id));
   if (!profile) {
     res.status(404).json({ error: "Diet profile not found" });
     return;
