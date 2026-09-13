@@ -90,6 +90,46 @@ describe("catalog HTTP", () => {
     assert.equal(second.status, 400);
   });
 
+  it("rejects a Product whose UPC is not a valid GS1 code", async () => {
+    const res = await server.request("/api/products", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Mystery can", upc: "012345678901" }),
+    });
+    assert.equal(res.status, 400);
+    const body = (await res.json()) as { error: string };
+    assert.equal(body.error, "Enter a valid UPC");
+  });
+
+  it("normalizes a scanned UPC before storing it", async () => {
+    const res = await server.request("/api/products", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Oat milk", upc: "0 12345 67890 5" }),
+    });
+    assert.equal(res.status, 201);
+    const body = (await res.json()) as { product: { upc: string } };
+    assert.equal(body.product.upc, "012345678905");
+  });
+
+  it("rejects a duplicate UPC written in a different format", async () => {
+    const first = await server.request("/api/products", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Yogurt A", upc: "012345678905" }),
+    });
+    assert.equal(first.status, 201);
+
+    const second = await server.request("/api/products", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Yogurt B", upc: "0-12345-67890-5" }),
+    });
+    assert.equal(second.status, 400);
+    const body = (await second.json()) as { error: string };
+    assert.equal(body.error, "A product with this UPC already exists");
+  });
+
   it("allows two Products without a UPC", async () => {
     const first = await server.request("/api/products", {
       method: "POST",

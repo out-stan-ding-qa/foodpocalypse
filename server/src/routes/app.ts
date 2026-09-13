@@ -161,7 +161,14 @@ appRouter.post("/products", async (req, res) => {
       ? req.body.nutrition
       : {};
   const listingUrl = asString(req.body?.listingUrl) || null;
-  const upc = asString(req.body?.upc) || null;
+  const scanned = asString(req.body?.upc);
+  // A UPC is optional, but a supplied one is stored parsed so the
+  // (user_id, upc) index sees one spelling of each code.
+  const upc = scanned ? parseUpc(scanned) : null;
+  if (scanned && !upc) {
+    res.status(400).json({ error: "Enter a valid UPC" });
+    return;
+  }
   const id = randomUUID();
   try {
     getDb()

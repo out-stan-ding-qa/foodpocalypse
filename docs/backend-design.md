@@ -144,7 +144,7 @@ Base path: `/api`. Every route below requires the `fp_access` cookie and answers
 | --- | --- | --- | --- |
 | POST | `/products/upc-lookup` | 200 `{ result }` | `{ upc }`. 400 `Enter a valid UPC` before any external call; 404 when Open Food Facts has no Product; 502 when the lookup is unavailable |
 | GET | `/products` | 200 `{ products }` | each Product carries `storeIds` and raw `ratings` |
-| POST | `/products` | 201 `{ product }` | `{ name, upc?, brand?, ingredients?, nutrition?, sourceType?, imageUrl?, notes?, listingUrl? }`. 400 on a duplicate UPC |
+| POST | `/products` | 201 `{ product }` | `{ name, upc?, brand?, ingredients?, nutrition?, sourceType?, imageUrl?, notes?, listingUrl? }`. A supplied UPC is parsed and stored normalized: 400 `Enter a valid UPC` when it is not a GS1 code, 400 on a duplicate |
 | GET | `/products/:id` | 200 `{ product, stores, unlinkedStores, ratings, dietProfiles }` | `ratings` are filtered to active Diet profiles with a visible mark |
 | PATCH | `/products/:id` | 200 `{ product }` | `{ listingUrl }` only; `null` clears it |
 | POST | `/products/:id/stores` | 204 | `{ storeId }`. Records an Availability |
