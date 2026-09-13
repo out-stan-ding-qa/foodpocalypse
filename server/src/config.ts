@@ -34,4 +34,6 @@ export const config = {
   sqlitePath: path.isAbsolute(sqlitePath)
     ? sqlitePath
     : path.resolve(serverDir, sqlitePath),
+  defaultUserEmail: process.env.DEFAULT_USER_EMAIL?.trim() ?? "",
+  defaultUserPassword: process.env.DEFAULT_USER_PASSWORD ?? "",
 };

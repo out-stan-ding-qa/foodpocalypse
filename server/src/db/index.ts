@@ -1,9 +1,13 @@
 import fs from "node:fs";
 import path from "node:path";
+import { randomUUID } from "node:crypto";
 import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { config } from "../config.js";
+import { hashEmail, isValidEmail } from "../auth/email.js";
+import { hashPassword } from "../auth/password.js";
 import * as schema from "./schema.js";
+import { users } from "./schema.js";
 
 type AppDb = ReturnType<typeof drizzle<typeof schema>>;
 
@@ -121,4 +125,31 @@ export function resetDb(): void {
     throw new Error("Database has not been initialized");
   }
   sqlite.exec("DELETE FROM users");
+}
+
+export async function ensureDefaultUser(): Promise<void> {
+  const email = config.defaultUserEmail;
+  const password = config.defaultUserPassword;
+  if (!email && !password) {
+    return;
+  }
+  if (!isValidEmail(email) || password.length < 8 || password.length > 128) {
+    throw new Error("DEFAULT_USER_EMAIL or DEFAULT_USER_PASSWORD is invalid");
+  }
+
+  const database = getDb();
+  const existing = database.select({ id: users.id }).from(users).get();
+  if (existing) {
+    return;
+  }
+
+  database
+    .insert(users)
+    .values({
+      id: randomUUID(),
+      emailHash: hashEmail(email),
+      passwordHash: await hashPassword(password),
+      createdAt: Date.now(),
+    })
+    .run();
 }

@@ -1,9 +1,21 @@
 import "./env.js";
-import { after, before, beforeEach, describe, it } from "node:test";
+import { after, afterEach, before, beforeEach, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { createApp } from "../src/app.js";
 import { resetDb } from "../src/db/index.js";
 import { startTestServer } from "./http.js";
+
+const realFetch = globalThis.fetch;
+
+function stubOpenFoodFacts(handler: typeof fetch) {
+  globalThis.fetch = async (input, init) => {
+    const url = String(input);
+    if (url.includes("openfoodfacts.org")) {
+      return handler(input, init);
+    }
+    return realFetch(input, init);
+  };
+}
 
 async function register(request: Awaited<ReturnType<typeof startTestServer>>["request"]) {
   await request("/api/auth/register", {
@@ -29,6 +41,10 @@ describe("catalog HTTP", () => {
     resetDb();
     server.jar.clear();
     await register(server.request);
+  });
+
+  afterEach(() => {
+    globalThis.fetch = realFetch;
   });
 
   it("creates a Product without a Listing", async () => {
@@ -111,5 +127,93 @@ describe("catalog HTTP", () => {
       body: JSON.stringify({ name: "Bad", address: "javascript:alert(1)" }),
     });
     assert.equal(res.status, 400);
+  });
+
+  it("looks up a Product by UPC for a signed-in User", async () => {
+    stubOpenFoodFacts(async () =>
+      new Response(
+        JSON.stringify({
+          status: 1,
+          product: {
+            product_name: "Test Fixture Oat Milk",
+            brands: "Oaty",
+            image_front_url: "https://images.example.com/oat.jpg",
+            ingredients_text: "Oat base, rapeseed oil",
+            nutriments: { "energy-kcal_100g": 48, proteins_100g: 1.1 },
+          },
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      ),
+    );
+
+    const res = await server.request("/api/products/upc-lookup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ upc: "012345678905" }),
+    });
+    assert.equal(res.status, 200);
+    const body = (await res.json()) as {
+      result: { name: string; brand: string; upc: string; listingUrl: string | null };
+    };
+    assert.equal(body.result.name, "Test Fixture Oat Milk");
+    assert.equal(body.result.brand, "Oaty");
+    assert.equal(body.result.upc, "012345678905");
+    assert.equal(body.result.listingUrl, null);
+  });
+
+  it("does not treat an Open Food Facts outage as a missing Product", async () => {
+    stubOpenFoodFacts(
+      async () =>
+        new Response("<html>service unavailable</html>", {
+          status: 503,
+          headers: { "content-type": "text/html" },
+        }),
+    );
+
+    const res = await server.request("/api/products/upc-lookup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ upc: "3017620422003" }),
+    });
+    const body = (await res.json()) as { error?: string };
+    assert.equal(res.status, 502);
+    assert.equal(body.error, "UPC lookup is unavailable");
+  });
+
+  it("returns 404 when Open Food Facts has no Product for the UPC", async () => {
+    stubOpenFoodFacts(
+      async () =>
+        new Response(JSON.stringify({ status: 0, status_verbose: "product not found" }), {
+          status: 404,
+          headers: { "content-type": "application/json" },
+        }),
+    );
+
+    const res = await server.request("/api/products/upc-lookup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ upc: "6291041500213" }),
+    });
+    const body = (await res.json()) as { error?: string };
+    assert.equal(res.status, 404);
+    assert.equal(body.error, "Product not found");
+  });
+
+  it("does not call Open Food Facts when the UPC is not valid", async () => {
+    let called = false;
+    stubOpenFoodFacts(async () => {
+      called = true;
+      return new Response("should not run", { status: 500 });
+    });
+
+    const res = await server.request("/api/products/upc-lookup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ upc: "012345678901" }),
+    });
+    const body = (await res.json()) as { error?: string };
+    assert.equal(res.status, 400);
+    assert.equal(body.error, "Enter a valid UPC");
+    assert.equal(called, false);
   });
 });

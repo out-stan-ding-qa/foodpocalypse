@@ -10,3 +10,5 @@ process.env.SQLITE_PATH = path.join(
 );
 process.env.NODE_ENV = "test";
 process.env.APP_ENV = "test";
+process.env.DEFAULT_USER_EMAIL = "owner@foodpocalypse.local";
+process.env.DEFAULT_USER_PASSWORD = "correct-horse";

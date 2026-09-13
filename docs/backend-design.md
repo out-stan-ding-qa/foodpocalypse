@@ -150,6 +150,8 @@ Local loads [`server/.env`](../server/.env.example). Production and test do not:
 | `JWT_SECRET` | yes | HMAC key for JWTs |
 | `EMAIL_PEPPER` | yes | HMAC key for email hashes |
 | `SQLITE_PATH` | no | SQLite file, relative to `server/` |
+| `DEFAULT_USER_EMAIL` | no | If both default User vars are set and the database has no User, seed one |
+| `DEFAULT_USER_PASSWORD` | no | Password for that seed User (8–128 characters) |
 
 `APP_ENV=production` enables `Secure` cookies and static SPA hosting (`client/dist`).
 

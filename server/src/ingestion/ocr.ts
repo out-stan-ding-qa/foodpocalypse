@@ -1,17 +1,17 @@
-export function normalizeUpc(raw: string): string | null {
-  const digits = raw.replace(/\D/g, "");
-  if (digits.length < 8 || digits.length > 14) {
-    return null;
-  }
-  return digits;
-}
+import { parseUpc } from "../domain/upc.js";
 
 export function extractUpcFromText(text: string): string | null {
   const matches = text.match(/\b\d{8,14}\b/g);
   if (!matches) {
     return null;
   }
-  return normalizeUpc(matches[0]);
+  for (const match of matches) {
+    const upc = parseUpc(match);
+    if (upc) {
+      return upc;
+    }
+  }
+  return null;
 }
 
 const NUTRIENT_PATTERNS: Array<[string, RegExp]> = [

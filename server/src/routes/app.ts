@@ -16,11 +16,11 @@ import {
 import { isTrafficLight, visibleMark } from "../domain/mark.js";
 import { isTrackedNutrient, TRACKED_NUTRIENTS } from "../domain/nutrients.js";
 import { isValidStoreLocation } from "../domain/storeLocation.js";
+import { parseUpc } from "../domain/upc.js";
 import {
   extractUpcFromText,
   guessProductNameFromText,
   hasMeaningfulNutrition,
-  normalizeUpc,
   parseNutritionFromText,
 } from "../ingestion/ocr.js";
 import { lookupByUpc } from "../ingestion/openFoodFacts.js";
@@ -87,17 +87,21 @@ appRouter.post("/products/upc-lookup", async (req, res) => {
   if (!(await requireUser(req, res))) {
     return;
   }
-  const upc = normalizeUpc(asString(req.body?.upc));
+  const upc = parseUpc(asString(req.body?.upc));
   if (!upc) {
     res.status(400).json({ error: "Enter a valid UPC" });
     return;
   }
-  const result = await lookupByUpc(upc);
-  if (!result) {
+  const lookup = await lookupByUpc(upc);
+  if (lookup.status === "unavailable") {
+    res.status(502).json({ error: "UPC lookup is unavailable" });
+    return;
+  }
+  if (lookup.status === "not_found") {
     res.status(404).json({ error: "Product not found" });
     return;
   }
-  res.json({ result: { ...result, upc, listingUrl: null } });
+  res.json({ result: { ...lookup.result, upc, listingUrl: null } });
 });
 
 appRouter.post("/products/photo-parse", async (req, res) => {
@@ -105,7 +109,7 @@ appRouter.post("/products/photo-parse", async (req, res) => {
     return;
   }
   const extractedText = asString(req.body?.extractedText);
-  const detectedUpc = normalizeUpc(asString(req.body?.detectedUpc));
+  const detectedUpc = parseUpc(asString(req.body?.detectedUpc));
   const thumbnailDataUrl = asString(req.body?.thumbnailDataUrl);
   const upcFromText = extractedText ? extractUpcFromText(extractedText) : null;
   const resolvedUpc = detectedUpc ?? upcFromText;
@@ -121,14 +125,14 @@ appRouter.post("/products/photo-parse", async (req, res) => {
   let confidence = 20;
 
   if (resolvedUpc) {
-    const upcResult = await lookupByUpc(resolvedUpc);
-    if (upcResult) {
+    const upcLookup = await lookupByUpc(resolvedUpc);
+    if (upcLookup.status === "found") {
       sources.push("upc");
-      name = upcResult.name;
-      brand = upcResult.brand || null;
-      ingredients = upcResult.ingredients || null;
-      imageUrl = upcResult.imageUrl || imageUrl;
-      nutrition = { ...nutrition, ...upcResult.nutrition };
+      name = upcLookup.result.name;
+      brand = upcLookup.result.brand || null;
+      ingredients = upcLookup.result.ingredients || null;
+      imageUrl = upcLookup.result.imageUrl || imageUrl;
+      nutrition = { ...nutrition, ...upcLookup.result.nutrition };
       confidence = 90;
     }
   }
