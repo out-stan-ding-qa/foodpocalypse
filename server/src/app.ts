@@ -11,7 +11,6 @@ export function createApp() {
   const app = express();
   app.disable("x-powered-by");
   app.set("trust proxy", false);
-  app.use("/api/products/photo-parse", express.json({ limit: "512kb" }));
   app.use(express.json({ limit: "64kb" }));
   app.use(cookieParser());
   app.use("/api/auth", authRouter);

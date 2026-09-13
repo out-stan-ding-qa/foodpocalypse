@@ -55,18 +55,6 @@ export type UpcResult = {
   listingUrl: string | null;
 };
 
-export type PhotoResult = {
-  name: string | null;
-  brand: string | null;
-  upc: string | null;
-  ingredients: string | null;
-  nutrition: Record<string, unknown>;
-  thumbnailUrl: string | null;
-  listingUrl: string | null;
-  confidence: number;
-  sources: string[];
-};
-
 export function listNutrients() {
   return api<{ nutrients: string[] }>("/api/nutrients");
 }
@@ -134,17 +122,6 @@ export function lookupUpc(upc: string) {
   return api<{ result: UpcResult }>("/api/products/upc-lookup", {
     method: "POST",
     body: JSON.stringify({ upc }),
-  });
-}
-
-export function parsePhoto(body: {
-  extractedText?: string;
-  detectedUpc?: string;
-  thumbnailDataUrl?: string;
-}) {
-  return api<{ result: PhotoResult }>("/api/products/photo-parse", {
-    method: "POST",
-    body: JSON.stringify(body),
   });
 }
 

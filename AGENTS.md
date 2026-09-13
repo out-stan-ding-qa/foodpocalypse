@@ -2,7 +2,7 @@
 
 ### Issue tracker
 
-Issues live in Jira at https://stilly.atlassian.net/ in project KAN (Kanban). Use the Atlassian Cursor plugin. See `docs/agents/issue-tracker.md`.
+Issues live in Jira at https://stilly.atlassian.net/ in project KAN (Foodpocalypse). Use the Atlassian Cursor plugin. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 

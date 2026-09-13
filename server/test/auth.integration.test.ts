@@ -2,11 +2,13 @@ import "./env.js";
 import { after, before, beforeEach, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { createApp } from "../src/app.js";
-import { resetDb } from "../src/db/index.js";
+import { ensureDefaultUser, resetDb } from "../src/db/index.js";
 import { startTestServer } from "./http.js";
 
 const email = "user@example.com";
 const password = "correct-horse";
+const defaultEmail = "owner@foodpocalypse.local";
+const defaultPassword = "correct-horse";
 
 describe("auth HTTP", () => {
   const app = createApp();
@@ -121,5 +123,35 @@ describe("auth HTTP", () => {
       body: JSON.stringify({ email, password }),
     });
     assert.equal(res.status, 404);
+  });
+
+  it("logs in as the default User on an empty database without registering", async () => {
+    await ensureDefaultUser();
+    const res = await server.request("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: defaultEmail, password: defaultPassword }),
+    });
+    assert.equal(res.status, 200);
+    const me = await server.request("/api/auth/me");
+    assert.equal(me.status, 200);
+    const body = (await me.json()) as { email?: string };
+    assert.equal(body.email, defaultEmail);
+  });
+
+  it("does not add the default User when a User already exists", async () => {
+    await server.request("/api/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    await server.request("/api/auth/logout", { method: "POST" });
+    await ensureDefaultUser();
+    const res = await server.request("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: defaultEmail, password: defaultPassword }),
+    });
+    assert.equal(res.status, 401);
   });
 });

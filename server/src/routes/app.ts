@@ -16,13 +16,7 @@ import {
 import { isTrafficLight, visibleMark } from "../domain/mark.js";
 import { isTrackedNutrient, TRACKED_NUTRIENTS } from "../domain/nutrients.js";
 import { isValidStoreLocation } from "../domain/storeLocation.js";
-import {
-  extractUpcFromText,
-  guessProductNameFromText,
-  hasMeaningfulNutrition,
-  normalizeUpc,
-  parseNutritionFromText,
-} from "../ingestion/ocr.js";
+import { parseUpc } from "../domain/upc.js";
 import { lookupByUpc } from "../ingestion/openFoodFacts.js";
 
 export const appRouter = Router();
@@ -87,77 +81,21 @@ appRouter.post("/products/upc-lookup", async (req, res) => {
   if (!(await requireUser(req, res))) {
     return;
   }
-  const upc = normalizeUpc(asString(req.body?.upc));
+  const upc = parseUpc(asString(req.body?.upc));
   if (!upc) {
     res.status(400).json({ error: "Enter a valid UPC" });
     return;
   }
-  const result = await lookupByUpc(upc);
-  if (!result) {
+  const lookup = await lookupByUpc(upc);
+  if (lookup.status === "unavailable") {
+    res.status(502).json({ error: "UPC lookup is unavailable" });
+    return;
+  }
+  if (lookup.status === "not_found") {
     res.status(404).json({ error: "Product not found" });
     return;
   }
-  res.json({ result: { ...result, upc, listingUrl: null } });
-});
-
-appRouter.post("/products/photo-parse", async (req, res) => {
-  if (!(await requireUser(req, res))) {
-    return;
-  }
-  const extractedText = asString(req.body?.extractedText);
-  const detectedUpc = normalizeUpc(asString(req.body?.detectedUpc));
-  const thumbnailDataUrl = asString(req.body?.thumbnailDataUrl);
-  const upcFromText = extractedText ? extractUpcFromText(extractedText) : null;
-  const resolvedUpc = detectedUpc ?? upcFromText;
-
-  const sources: string[] = [];
-  let name: string | null = null;
-  let brand: string | null = null;
-  let ingredients: string | null = null;
-  let imageUrl: string | null = thumbnailDataUrl || null;
-  let nutrition: Record<string, string | number | null> = extractedText
-    ? parseNutritionFromText(extractedText)
-    : {};
-  let confidence = 20;
-
-  if (resolvedUpc) {
-    const upcResult = await lookupByUpc(resolvedUpc);
-    if (upcResult) {
-      sources.push("upc");
-      name = upcResult.name;
-      brand = upcResult.brand || null;
-      ingredients = upcResult.ingredients || null;
-      imageUrl = upcResult.imageUrl || imageUrl;
-      nutrition = { ...nutrition, ...upcResult.nutrition };
-      confidence = 90;
-    }
-  }
-
-  if (!name && extractedText) {
-    name = guessProductNameFromText(extractedText);
-    if (name) {
-      sources.push("ocr");
-      confidence = Math.max(confidence, 55);
-    }
-  }
-  if (hasMeaningfulNutrition(nutrition) && !sources.includes("ocr") && extractedText) {
-    sources.push("ocr");
-    confidence = Math.max(confidence, 60);
-  }
-
-  res.json({
-    result: {
-      name,
-      brand,
-      upc: resolvedUpc,
-      ingredients,
-      nutrition,
-      thumbnailUrl: imageUrl,
-      listingUrl: null,
-      confidence,
-      sources,
-    },
-  });
+  res.json({ result: { ...lookup.result, upc, listingUrl: null } });
 });
 
 appRouter.get("/products", async (req, res) => {

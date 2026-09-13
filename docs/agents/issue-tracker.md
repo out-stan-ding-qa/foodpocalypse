@@ -7,7 +7,7 @@ Use the Atlassian Cursor plugin (MCP namespace `plugin-atlassian-atlassian`) for
 
 - **Site**: https://stilly.atlassian.net/
 - **cloudId**: `stilly.atlassian.net` (UUID `3b51a000-fb59-4b8e-be62-283c12832506` if the hostname is rejected)
-- **Project key**: `KAN` (`My Software Team`)
+- **Project key**: `KAN` (`Foodpocalypse`)
 - **Issue keys**: `KAN-<n>` (e.g. `KAN-12`)
 - **Board**: team-managed software project, default Kanban (`To Do` → `In Progress` → `Done`)
 - **Issue types**: Task (default for tickets/specs), Story, Epic, Subtask

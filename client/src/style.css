@@ -298,30 +298,6 @@ button:disabled {
   cursor: default;
 }
 
-.tabs {
-  display: flex;
-  gap: 0.4rem;
-}
-
-.tabs button {
-  flex: 1;
-  background: #e5e7eb;
-  color: #111827;
-}
-
-.tabs button.active {
-  background: #2563eb;
-  color: #fff;
-}
-
-.thumb {
-  width: 5.5rem;
-  height: 5.5rem;
-  object-fit: cover;
-  border-radius: 0.7rem;
-  border: 1px solid #e5e7eb;
-}
-
 pre {
   margin: 0;
   font-size: 0.75rem;

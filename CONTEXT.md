@@ -26,6 +26,10 @@ _Avoid_: Passcode, PIN, Passkey
 A packaged item this User has saved, typically with a brand. An optional UPC, when present, is unique for this User.
 _Avoid_: Food
 
+**UPC**:
+The GS1 barcode identifier of a packaged Product. It is a complete GTIN-8, UPC-A (GTIN-12), GTIN-13, or GTIN-14, including a valid check digit. Store-internal, coupon, and all-zero codes are not UPCs here.
+_Avoid_: barcode (as the type), GTIN (in User-facing copy)
+
 **Listing**:
 A URL for this Product (product page or search), stored on the Product.
 _Avoid_: Amazon URL (as the type), Store (for this link)

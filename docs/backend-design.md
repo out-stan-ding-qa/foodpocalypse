@@ -42,7 +42,7 @@ flowchart LR
   DB --> Users["users"]
 ```
 
-The API does not look up geolocation, does not persist request metadata, and does not enable `trust proxy`. `X-Powered-By` is disabled. JSON bodies are capped at 64 KB (`/api/products/photo-parse` allows 512 KB). Parse errors return `{ error: "Bad request" }` with no stack traces.
+The API does not look up geolocation, does not persist request metadata, and does not enable `trust proxy`. `X-Powered-By` is disabled. JSON bodies are capped at 64 KB. Parse errors return `{ error: "Bad request" }` with no stack traces.
 
 ## Source layout
 
@@ -150,6 +150,8 @@ Local loads [`server/.env`](../server/.env.example). Production and test do not:
 | `JWT_SECRET` | yes | HMAC key for JWTs |
 | `EMAIL_PEPPER` | yes | HMAC key for email hashes |
 | `SQLITE_PATH` | no | SQLite file, relative to `server/` |
+| `DEFAULT_USER_EMAIL` | no | If both default User vars are set and the database has no User, seed one |
+| `DEFAULT_USER_PASSWORD` | no | Password for that seed User (8–128 characters) |
 
 `APP_ENV=production` enables `Secure` cookies and static SPA hosting (`client/dist`).
 
