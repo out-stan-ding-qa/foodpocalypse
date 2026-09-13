@@ -216,4 +216,13 @@ describe("catalog HTTP", () => {
     assert.equal(body.error, "Enter a valid UPC");
     assert.equal(called, false);
   });
+
+  it("does not expose photo-parse", async () => {
+    const res = await server.request("/api/products/photo-parse", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ extractedText: "Oat milk" }),
+    });
+    assert.equal(res.status, 404);
+  });
 });

@@ -42,7 +42,7 @@ flowchart LR
   DB --> Users["users"]
 ```
 
-The API does not look up geolocation, does not persist request metadata, and does not enable `trust proxy`. `X-Powered-By` is disabled. JSON bodies are capped at 64 KB (`/api/products/photo-parse` allows 512 KB). Parse errors return `{ error: "Bad request" }` with no stack traces.
+The API does not look up geolocation, does not persist request metadata, and does not enable `trust proxy`. `X-Powered-By` is disabled. JSON bodies are capped at 64 KB. Parse errors return `{ error: "Bad request" }` with no stack traces.
 
 ## Source layout
 
