@@ -136,6 +136,34 @@ Base path: `/api/auth`. Mutating routes expect `Content-Type: application/json` 
 
 Error shape: `{ error: string }`. Auth failures are generic; they do not distinguish unknown email vs wrong password.
 
+## HTTP API (app)
+
+Base path: `/api`. Every route below requires the `fp_access` cookie and answers 401 without it. Mutating routes expect `Content-Type: application/json`. Rows are the complete surface; `server/test/api-surface.test.ts` fails if the router and this table drift apart.
+
+| Method | Path | Success | Body / notes |
+| --- | --- | --- | --- |
+| POST | `/products/upc-lookup` | 200 `{ result }` | `{ upc }`. 400 `Enter a valid UPC` before any external call; 404 when Open Food Facts has no Product; 502 when the lookup is unavailable |
+| GET | `/products` | 200 `{ products }` | each Product carries `storeIds` and raw `ratings` |
+| POST | `/products` | 201 `{ product }` | `{ name, upc?, brand?, ingredients?, nutrition?, sourceType?, imageUrl?, notes?, listingUrl? }`. 400 on a duplicate UPC |
+| GET | `/products/:id` | 200 `{ product, stores, unlinkedStores, ratings, dietProfiles }` | `ratings` are filtered to active Diet profiles with a visible mark |
+| PATCH | `/products/:id` | 200 `{ product }` | `{ listingUrl }` only; `null` clears it |
+| POST | `/products/:id/stores` | 204 | `{ storeId }`. Records an Availability |
+| POST | `/products/:id/ratings` | 201 / 200 `{ rating, recommendation, mark }` | `{ dietProfileId, rating }`. 201 on first Rating, 200 on update |
+| GET | `/stores` | 200 `{ stores }` | sorted by name |
+| POST | `/stores` | 201 `{ store }` | `{ name, address }`. 400 unless the location is a street address or an http(s) URL |
+| GET | `/diets` | 200 `{ diets }` | each Diet profile carries its Tracked nutrients |
+| POST | `/diets` | 201 `{ diet }` | `{ name, nutrients? }`. Unknown nutrients are dropped |
+| PATCH | `/diets/:id` | 200 `{ diet }` | `{ name?, active? }` |
+| POST | `/diets/:id/nutrients` | 204 | `{ nutrient }`. 400 off the closed list; adding twice is a no-op |
+| DELETE | `/diets/:id/nutrients/:nutrient` | 204 | nutrient is URL-encoded in the path |
+| GET | `/shopping` | 200 `{ list, items }` | opens the current list if there is none; items oldest first |
+| POST | `/shopping/items` | 201 `{ item }` | `{ name, productId? }`. A linked Product supplies the name |
+| PATCH | `/shopping/items/:id` | 200 `{ item }` | `{ checked }`. Scoped to the current list |
+| POST | `/shopping/archive` | 200 `{ list }` | archives the current list and opens a fresh one. 400 when it is empty |
+| GET | `/shopping/history` | 200 `{ lists }` | archived lists with their items, newest first |
+
+Reads are scoped to the signed-in User in SQL rather than filtered afterwards, so a join table never leaves its owner. Unmatched paths under `/api` return 404 `{ error: "Not found" }` as JSON, ahead of the SPA fallback, so a stale client URL never receives `index.html`.
+
 ## Environment
 
 Three environments: **local** (default), **production**, and **test**. `APP_ENV` selects one; if it is unset, `NODE_ENV=production` means production, `NODE_ENV=test` means test, otherwise local. See [ADR 0004](adr/0004-process-env-in-production.md).

@@ -129,6 +129,25 @@ describe("catalog HTTP", () => {
     assert.equal(res.status, 400);
   });
 
+  it("lists this User's Stores by name", async () => {
+    for (const name of ["Zero Waste", "Aldi", "Market Basket"]) {
+      const created = await server.request("/api/stores", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, address: "1 Main St" }),
+      });
+      assert.equal(created.status, 201);
+    }
+
+    const res = await server.request("/api/stores");
+    assert.equal(res.status, 200);
+    const body = (await res.json()) as { stores: Array<{ name: string }> };
+    assert.deepEqual(
+      body.stores.map((store) => store.name),
+      ["Aldi", "Market Basket", "Zero Waste"],
+    );
+  });
+
   it("looks up a Product by UPC for a signed-in User", async () => {
     stubOpenFoodFacts(async () =>
       new Response(
@@ -217,12 +236,4 @@ describe("catalog HTTP", () => {
     assert.equal(called, false);
   });
 
-  it("does not expose photo-parse", async () => {
-    const res = await server.request("/api/products/photo-parse", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ extractedText: "Oat milk" }),
-    });
-    assert.equal(res.status, 404);
-  });
 });

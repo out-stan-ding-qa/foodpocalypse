@@ -14,7 +14,7 @@ import {
   stores,
 } from "../db/schema.js";
 import { isTrafficLight, visibleMark } from "../domain/mark.js";
-import { isTrackedNutrient, TRACKED_NUTRIENTS } from "../domain/nutrients.js";
+import { isTrackedNutrient } from "../domain/nutrients.js";
 import { isValidStoreLocation } from "../domain/storeLocation.js";
 import { parseUpc } from "../domain/upc.js";
 import { lookupByUpc } from "../ingestion/openFoodFacts.js";
@@ -49,6 +49,18 @@ async function ownedProduct(userId: string, productId: string) {
     .get();
 }
 
+function trackedNutrientsFor(userId: string) {
+  return getDb()
+    .select({
+      dietProfileId: dietProfileNutrients.dietProfileId,
+      nutrient: dietProfileNutrients.nutrient,
+    })
+    .from(dietProfileNutrients)
+    .innerJoin(dietProfiles, eq(dietProfiles.id, dietProfileNutrients.dietProfileId))
+    .where(eq(dietProfiles.userId, userId))
+    .all();
+}
+
 function activeListFor(userId: string) {
   const db = getDb();
   const existing = db
@@ -69,13 +81,6 @@ function activeListFor(userId: string) {
   db.insert(shoppingLists).values(created).run();
   return created;
 }
-
-appRouter.get("/nutrients", async (req, res) => {
-  if (!(await requireUser(req, res))) {
-    return;
-  }
-  res.json({ nutrients: TRACKED_NUTRIENTS });
-});
 
 appRouter.post("/products/upc-lookup", async (req, res) => {
   if (!(await requireUser(req, res))) {
@@ -103,15 +108,33 @@ appRouter.get("/products", async (req, res) => {
   if (!user) {
     return;
   }
-  const rows = getDb()
+  const db = getDb();
+  const rows = db
     .select()
     .from(products)
     .where(eq(products.userId, user.sub))
     .all()
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  const storeLinks = getDb().select().from(productStores).all();
-  const ratings = getDb().select().from(productDietRatings).all();
+  const storeLinks = db
+    .select({ productId: productStores.productId, storeId: productStores.storeId })
+    .from(productStores)
+    .innerJoin(products, eq(products.id, productStores.productId))
+    .where(eq(products.userId, user.sub))
+    .all();
+  const ratings = db
+    .select({
+      id: productDietRatings.id,
+      productId: productDietRatings.productId,
+      dietProfileId: productDietRatings.dietProfileId,
+      rating: productDietRatings.rating,
+      recommendation: productDietRatings.recommendation,
+      updatedAt: productDietRatings.updatedAt,
+    })
+    .from(productDietRatings)
+    .innerJoin(products, eq(products.id, productDietRatings.productId))
+    .where(eq(products.userId, user.sub))
+    .all();
 
   res.json({
     products: rows.map((row) => ({
@@ -199,7 +222,7 @@ appRouter.get("/products/:id", async (req, res) => {
     .from(dietProfiles)
     .where(eq(dietProfiles.userId, user.sub))
     .all();
-  const nutrients = db.select().from(dietProfileNutrients).all();
+  const nutrients = trackedNutrientsFor(user.sub);
 
   res.json({
     product: serializeProduct(product),
@@ -394,7 +417,7 @@ appRouter.get("/diets", async (req, res) => {
     .where(eq(dietProfiles.userId, user.sub))
     .all()
     .sort((a, b) => a.name.localeCompare(b.name));
-  const nutrients = db.select().from(dietProfileNutrients).all();
+  const nutrients = trackedNutrientsFor(user.sub);
   res.json({
     diets: profiles.map((profile) => ({
       ...profile,
@@ -634,7 +657,19 @@ appRouter.get("/shopping/history", async (req, res) => {
     .where(and(eq(shoppingLists.userId, user.sub), eq(shoppingLists.status, "archived")))
     .orderBy(desc(shoppingLists.archivedAt))
     .all();
-  const items = getDb().select().from(shoppingListItems).all();
+  const items = getDb()
+    .select({
+      id: shoppingListItems.id,
+      listId: shoppingListItems.listId,
+      name: shoppingListItems.name,
+      productId: shoppingListItems.productId,
+      checked: shoppingListItems.checked,
+      createdAt: shoppingListItems.createdAt,
+    })
+    .from(shoppingListItems)
+    .innerJoin(shoppingLists, eq(shoppingLists.id, shoppingListItems.listId))
+    .where(eq(shoppingLists.userId, user.sub))
+    .all();
   res.json({
     lists: lists.map((list) => ({
       ...list,

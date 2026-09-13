@@ -103,6 +103,76 @@ describe("diet HTTP", () => {
     assert.equal(body.ratings[0]?.rating, null);
   });
 
+  it("adds a Tracked nutrient to a Diet profile once", async () => {
+    const dietRes = await server.request("/api/diets", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Low sodium", nutrients: [] }),
+    });
+    const { diet } = (await dietRes.json()) as { diet: { id: string } };
+
+    const first = await server.request(`/api/diets/${diet.id}/nutrients`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nutrient: "Iron" }),
+    });
+    const again = await server.request(`/api/diets/${diet.id}/nutrients`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nutrient: "Iron" }),
+    });
+    assert.equal(first.status, 204);
+    assert.equal(again.status, 204);
+
+    const list = await server.request("/api/diets");
+    const body = (await list.json()) as { diets: Array<{ nutrients: string[] }> };
+    assert.deepEqual(body.diets[0]?.nutrients, ["Iron"]);
+  });
+
+  it("rejects a nutrient that is not on the tracked list", async () => {
+    const dietRes = await server.request("/api/diets", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Low sodium", nutrients: [] }),
+    });
+    const { diet } = (await dietRes.json()) as { diet: { id: string } };
+
+    const res = await server.request(`/api/diets/${diet.id}/nutrients`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nutrient: "Sodium" }),
+    });
+    assert.equal(res.status, 400);
+  });
+
+  it("returns 404 when adding a Tracked nutrient to an unknown Diet profile", async () => {
+    const res = await server.request("/api/diets/no-such-profile/nutrients", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nutrient: "Iron" }),
+    });
+    assert.equal(res.status, 404);
+  });
+
+  it("removes a Tracked nutrient from a Diet profile", async () => {
+    const dietRes = await server.request("/api/diets", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Low sodium", nutrients: ["Fiber", "Vitamin B-12"] }),
+    });
+    const { diet } = (await dietRes.json()) as { diet: { id: string } };
+
+    const res = await server.request(
+      `/api/diets/${diet.id}/nutrients/${encodeURIComponent("Vitamin B-12")}`,
+      { method: "DELETE" },
+    );
+    assert.equal(res.status, 204);
+
+    const list = await server.request("/api/diets");
+    const body = (await list.json()) as { diets: Array<{ nutrients: string[] }> };
+    assert.deepEqual(body.diets[0]?.nutrients, ["Fiber"]);
+  });
+
   it("hides marks for an inactive Diet profile", async () => {
     const productRes = await server.request("/api/products", {
       method: "POST",

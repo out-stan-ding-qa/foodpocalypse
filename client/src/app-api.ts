@@ -55,10 +55,6 @@ export type UpcResult = {
   listingUrl: string | null;
 };
 
-export function listNutrients() {
-  return api<{ nutrients: string[] }>("/api/nutrients");
-}
-
 export function listProducts() {
   return api<{ products: Product[] }>("/api/products");
 }

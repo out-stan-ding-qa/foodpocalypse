@@ -116,15 +116,6 @@ describe("auth HTTP", () => {
     assert.equal(me.status, 401);
   });
 
-  it("does not expose Passkey routes", async () => {
-    const res = await server.request("/api/auth/passkey/register/options", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
-    assert.equal(res.status, 404);
-  });
-
   it("logs in as the default User on an empty database without registering", async () => {
     await ensureDefaultUser();
     const res = await server.request("/api/auth/login", {

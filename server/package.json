@@ -7,7 +7,8 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "test": "tsx --test --test-concurrency=1 test/mark.test.ts test/store-location.test.ts test/upc.test.ts test/email.test.ts test/password.test.ts test/app-env.test.ts test/auth.integration.test.ts test/catalog.integration.test.ts test/diet.integration.test.ts"
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "npm run typecheck && tsx --test --test-concurrency=1 test/mark.test.ts test/store-location.test.ts test/upc.test.ts test/email.test.ts test/password.test.ts test/app-env.test.ts test/api-surface.test.ts test/auth.integration.test.ts test/catalog.integration.test.ts test/diet.integration.test.ts test/isolation.integration.test.ts test/shopping.integration.test.ts test/routing.integration.test.ts"
   },
   "dependencies": {
     "argon2": "^0.44.0",
