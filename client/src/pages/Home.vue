@@ -47,7 +47,7 @@ onMounted(async () => {
         <span class="tile-icon green"><List :size="22" /></span>
         Shopping List
       </RouterLink>
-      <RouterLink class="tile" to="/diets">
+      <RouterLink class="tile" to="/diet-profiles">
         <span class="tile-icon red"><HeartPulse :size="22" /></span>
         Diet Profiles
       </RouterLink>

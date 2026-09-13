@@ -412,7 +412,7 @@ appRouter.post("/stores", async (req, res) => {
   res.status(201).json({ store });
 });
 
-appRouter.get("/diets", async (req, res) => {
+appRouter.get("/diet-profiles", async (req, res) => {
   const user = await requireUser(req, res);
   if (!user) {
     return;
@@ -426,7 +426,7 @@ appRouter.get("/diets", async (req, res) => {
     .sort((a, b) => a.name.localeCompare(b.name));
   const nutrients = trackedNutrientsFor(user.sub);
   res.json({
-    diets: profiles.map((profile) => ({
+    dietProfiles: profiles.map((profile) => ({
       ...profile,
       active: Boolean(profile.active),
       nutrients: nutrients
@@ -436,7 +436,7 @@ appRouter.get("/diets", async (req, res) => {
   });
 });
 
-appRouter.post("/diets", async (req, res) => {
+appRouter.post("/diet-profiles", async (req, res) => {
   const user = await requireUser(req, res);
   if (!user) {
     return;
@@ -466,11 +466,11 @@ appRouter.post("/diets", async (req, res) => {
       .run();
   }
   res.status(201).json({
-    diet: { ...profile, active: true, nutrients: selected },
+    dietProfile: { ...profile, active: true, nutrients: selected },
   });
 });
 
-appRouter.patch("/diets/:id", async (req, res) => {
+appRouter.patch("/diet-profiles/:id", async (req, res) => {
   const user = await requireUser(req, res);
   if (!user) {
     return;
@@ -492,10 +492,10 @@ appRouter.patch("/diets/:id", async (req, res) => {
     .set({ name, active })
     .where(eq(dietProfiles.id, profile.id))
     .run();
-  res.json({ diet: { ...profile, name, active: Boolean(active) } });
+  res.json({ dietProfile: { ...profile, name, active: Boolean(active) } });
 });
 
-appRouter.post("/diets/:id/nutrients", async (req, res) => {
+appRouter.post("/diet-profiles/:id/nutrients", async (req, res) => {
   const user = await requireUser(req, res);
   if (!user) {
     return;
@@ -533,7 +533,7 @@ appRouter.post("/diets/:id/nutrients", async (req, res) => {
   res.status(204).end();
 });
 
-appRouter.delete("/diets/:id/nutrients/:nutrient", async (req, res) => {
+appRouter.delete("/diet-profiles/:id/nutrients/:nutrient", async (req, res) => {
   const user = await requireUser(req, res);
   if (!user) {
     return;

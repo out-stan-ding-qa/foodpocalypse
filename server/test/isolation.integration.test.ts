@@ -6,7 +6,7 @@ import { resetDb } from "../src/db/index.js";
 import { startTestServer } from "./http.js";
 
 type Credentials = { email: string; password: string };
-type Fixture = { store: { id: string }; product: { id: string }; diet: { id: string } };
+type Fixture = { store: { id: string }; product: { id: string }; dietProfile: { id: string } };
 
 const ALICE: Credentials = { email: "alice@example.com", password: "correct-horse" };
 const BOB: Credentials = { email: "bob@example.com", password: "battery-staple" };
@@ -47,12 +47,15 @@ describe("cross-User isolation", () => {
     const link = await post(`/api/products/${product.id}/stores`, { storeId: store.id });
     assert.equal(link.status, 204);
 
-    const dietRes = await post("/api/diets", { name: `${tag} profile`, nutrients: [nutrient] });
-    assert.equal(dietRes.status, 201);
-    const { diet } = (await dietRes.json()) as Pick<Fixture, "diet">;
+    const profileRes = await post("/api/diet-profiles", {
+      name: `${tag} profile`,
+      nutrients: [nutrient],
+    });
+    assert.equal(profileRes.status, 201);
+    const { dietProfile } = (await profileRes.json()) as Pick<Fixture, "dietProfile">;
 
     const rating = await post(`/api/products/${product.id}/ratings`, {
-      dietProfileId: diet.id,
+      dietProfileId: dietProfile.id,
       rating: "green",
     });
     assert.equal(rating.status, 201);
@@ -60,7 +63,7 @@ describe("cross-User isolation", () => {
     assert.equal((await post("/api/shopping/items", { name: `${tag} Bananas` })).status, 201);
     assert.equal((await post("/api/shopping/archive", {})).status, 200);
 
-    return { store, product, diet };
+    return { store, product, dietProfile };
   }
 
   before(async () => {
@@ -92,7 +95,7 @@ describe("cross-User isolation", () => {
     assert.deepEqual(body.products[0]?.storeIds, [alice.store.id]);
     assert.deepEqual(
       body.products[0]?.ratings.map((rating) => rating.dietProfileId),
-      [alice.diet.id],
+      [alice.dietProfile.id],
     );
   });
 
@@ -105,21 +108,21 @@ describe("cross-User isolation", () => {
 
     assert.deepEqual(
       body.dietProfiles.map((profile) => profile.id),
-      [alice.diet.id],
+      [alice.dietProfile.id],
     );
     assert.deepEqual(body.dietProfiles[0]?.nutrients, ["Fiber"]);
   });
 
   it("lists only this User's Diet profiles with their own Tracked nutrients", async () => {
-    const res = await server.request("/api/diets");
+    const res = await server.request("/api/diet-profiles");
     assert.equal(res.status, 200);
-    const body = (await res.json()) as { diets: { id: string; nutrients: string[] }[] };
+    const body = (await res.json()) as { dietProfiles: { id: string; nutrients: string[] }[] };
 
     assert.deepEqual(
-      body.diets.map((diet) => diet.id),
-      [alice.diet.id],
+      body.dietProfiles.map((profile) => profile.id),
+      [alice.dietProfile.id],
     );
-    assert.deepEqual(body.diets[0]?.nutrients, ["Fiber"]);
+    assert.deepEqual(body.dietProfiles[0]?.nutrients, ["Fiber"]);
   });
 
   it("returns only this User's archived Shopping lists and their items", async () => {

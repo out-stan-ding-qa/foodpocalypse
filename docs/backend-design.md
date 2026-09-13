@@ -54,7 +54,7 @@ server/src/
   db/schema.ts          Drizzle tables
   db/index.ts           SQLite open + CREATE TABLE
   routes/auth.ts        /api/auth handlers
-  routes/app.ts         products, stores, diets, shopping
+  routes/app.ts         products, stores, Diet profiles, shopping
   auth/password.ts      Argon2id hash/verify
   auth/email.ts         normalize + HMAC
   auth/jwt.ts           access/refresh JWTs
@@ -151,11 +151,11 @@ Base path: `/api`. Every route below requires the `fp_access` cookie and answers
 | POST | `/products/:id/ratings` | 201 / 200 `{ rating, recommendation, mark }` | `{ dietProfileId, rating }`. 201 on first Rating, 200 on update |
 | GET | `/stores` | 200 `{ stores }` | sorted by name |
 | POST | `/stores` | 201 `{ store }` | `{ name, address }`. 400 unless the location is a street address or an http(s) URL |
-| GET | `/diets` | 200 `{ diets }` | each Diet profile carries its Tracked nutrients |
-| POST | `/diets` | 201 `{ diet }` | `{ name, nutrients? }`. Unknown nutrients are dropped |
-| PATCH | `/diets/:id` | 200 `{ diet }` | `{ name?, active? }` |
-| POST | `/diets/:id/nutrients` | 204 | `{ nutrient }`. 400 off the closed list; adding twice is a no-op |
-| DELETE | `/diets/:id/nutrients/:nutrient` | 204 | nutrient is URL-encoded in the path |
+| GET | `/diet-profiles` | 200 `{ dietProfiles }` | each Diet profile carries its Tracked nutrients |
+| POST | `/diet-profiles` | 201 `{ dietProfile }` | `{ name, nutrients? }`. Unknown nutrients are dropped |
+| PATCH | `/diet-profiles/:id` | 200 `{ dietProfile }` | `{ name?, active? }` |
+| POST | `/diet-profiles/:id/nutrients` | 204 | `{ nutrient }`. 400 off the closed list; adding twice is a no-op |
+| DELETE | `/diet-profiles/:id/nutrients/:nutrient` | 204 | nutrient is URL-encoded in the path |
 | GET | `/shopping` | 200 `{ list, items }` | opens the current list if there is none; items oldest first |
 | POST | `/shopping/items` | 201 `{ item }` | `{ name, productId? }`. A linked Product supplies the name |
 | PATCH | `/shopping/items/:id` | 200 `{ item }` | `{ checked }`. Scoped to the current list |
