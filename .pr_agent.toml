@@ -1,0 +1,11 @@
+[config]
+model = "gemini/gemini-3.7-flash"
+fallback_models = ["gemini/gemini-2.5-flash"]
+restricted_mode = true
+repo_context_files = ["AGENTS.md", "CONTEXT.md"]
+
+[pr_reviewer]
+extra_instructions = """
+Use Foodpocalypse glossary terms from CONTEXT.md (User, Product, UPC, Diet profile, Rating vs Recommendation).
+Flag production changes under server/src/domain/ or server/src/routes/ that did not start from a failing test.
+"""
