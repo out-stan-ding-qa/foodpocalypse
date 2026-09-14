@@ -101,10 +101,10 @@ export function linkStore(productId: string, storeId: string) {
 export function setProductRating(
   productId: string,
   dietProfileId: string,
-  rating: TrafficLight,
+  rating: TrafficLight | null,
 ) {
   return api<{
-    rating: TrafficLight;
+    rating: TrafficLight | null;
     recommendation: TrafficLight | null;
     mark: TrafficLight | null;
   }>(

@@ -37,10 +37,10 @@ const listingUrl = ref("");
 const amountGrams = ref(100);
 const showAll = ref(false);
 
-const nextColor: Record<TrafficLight, TrafficLight> = {
+const nextRating: Record<TrafficLight, TrafficLight | null> = {
   green: "yellow",
   yellow: "red",
-  red: "green",
+  red: null,
 };
 
 function scale(value: unknown): string {
@@ -96,8 +96,9 @@ onMounted(async () => {
   }
 });
 
-async function cycle(dietProfileId: string, current: TrafficLight) {
-  await setProductRating(String(route.params.id), dietProfileId, nextColor[current]);
+async function cycle(dietProfileId: string, currentRating: TrafficLight | null) {
+  const next = currentRating ? nextRating[currentRating] : "yellow";
+  await setProductRating(String(route.params.id), dietProfileId, next);
   await load();
 }
 
@@ -134,9 +135,8 @@ async function saveListing() {
           class="bubble"
           :class="rating.mark"
           type="button"
-          :title="'Tap to change color'"
-          :disabled="!rating.mark"
-          @click="rating.mark && cycle(rating.dietProfileId, rating.mark)"
+          :title="'Tap to change Rating'"
+          @click="cycle(rating.dietProfileId, rating.rating)"
         >
           {{ rating.dietProfile?.name || "Diet profile" }}
         </button>

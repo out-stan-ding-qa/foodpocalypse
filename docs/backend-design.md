@@ -152,7 +152,7 @@ Base path: `/api`. Every route below requires the `fp_access` cookie and answers
 | GET | `/products/:id` | 200 `{ product, stores, unlinkedStores, ratings, dietProfiles }` | `ratings` are filtered to active Diet profiles with a visible mark |
 | PATCH | `/products/:id` | 200 `{ product }` | `{ listingUrl }` only; `null` clears it |
 | POST | `/products/:id/stores` | 204 | `{ storeId }`. Records an Availability |
-| POST | `/products/:id/ratings` | 201 / 200 `{ rating, recommendation, mark }` | `{ dietProfileId, rating }`. 201 on first Rating, 200 on update |
+| POST | `/products/:id/ratings` | 201 / 200 `{ rating, recommendation, mark }` | `{ dietProfileId, rating }`. `rating` is a traffic light, or `null` to clear the Rating (Recommendation stays). 201 on first Rating, 200 on update or clear. 400 if `rating` is missing or empty; 400 if it is not a traffic light |
 | GET | `/stores` | 200 `{ stores }` | sorted by name |
 | POST | `/stores` | 201 `{ store }` | `{ name, address }`. 400 unless the location is a street address or an http(s) URL |
 | PATCH | `/stores/:id` | 200 `{ store }` | `{ name, address }`. Same location rule as create; both fields required |

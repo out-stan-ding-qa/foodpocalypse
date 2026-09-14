@@ -348,18 +348,9 @@ appRouter.post("/products/:id/ratings", async (req, res) => {
   }
   const product = await ownedProduct(user.sub, String(req.params.id));
   const dietProfileId = asString(req.body?.dietProfileId);
-  const ratingValue = asString(req.body?.rating);
   const profile = ownedDietProfile(user.sub, dietProfileId);
   if (!product || !profile) {
     res.status(404).json({ error: "Not found" });
-    return;
-  }
-  if (!ratingValue) {
-    res.status(400).json({ error: "Rating is required" });
-    return;
-  }
-  if (!isTrafficLight(ratingValue)) {
-    res.status(400).json({ error: "Invalid rating" });
     return;
   }
   const existing = getDb()
@@ -372,6 +363,36 @@ appRouter.post("/products/:id/ratings", async (req, res) => {
       ),
     )
     .get();
+  const recommendation =
+    existing?.recommendation && isTrafficLight(existing.recommendation)
+      ? existing.recommendation
+      : null;
+  if (req.body?.rating === null) {
+    if (!existing) {
+      res.status(400).json({ error: "Rating is required" });
+      return;
+    }
+    getDb()
+      .update(productDietRatings)
+      .set({ rating: null, updatedAt: Date.now() })
+      .where(eq(productDietRatings.id, existing.id))
+      .run();
+    res.json({
+      rating: null,
+      recommendation,
+      mark: visibleMark(null, recommendation),
+    });
+    return;
+  }
+  const ratingValue = asString(req.body?.rating);
+  if (!ratingValue) {
+    res.status(400).json({ error: "Rating is required" });
+    return;
+  }
+  if (!isTrafficLight(ratingValue)) {
+    res.status(400).json({ error: "Invalid rating" });
+    return;
+  }
   if (existing) {
     getDb()
       .update(productDietRatings)
