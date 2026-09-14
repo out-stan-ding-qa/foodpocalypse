@@ -31,7 +31,7 @@ const ratings = ref<
     dietProfile: DietProfile | null;
   }>
 >([]);
-const diets = ref<DietProfile[]>([]);
+const profiles = ref<DietProfile[]>([]);
 const error = ref("");
 const listingUrl = ref("");
 const foodWeight = ref(100);
@@ -52,7 +52,9 @@ function scale(value: unknown): string {
 
 const visibleNutrients = computed(() => {
   const nutrition = product.value?.nutrition ?? {};
-  const activeLabels = diets.value.filter((diet) => diet.active).flatMap((diet) => diet.nutrients);
+  const activeLabels = profiles.value
+    .filter((profile) => profile.active)
+    .flatMap((profile) => profile.nutrients);
   const keys = new Set<string>(["calories"]);
   for (const label of activeLabels) {
     if (label in NUTRITION_LABEL_TO_KEY) {
@@ -68,9 +70,10 @@ const visibleNutrients = computed(() => {
   }));
 });
 
-const unusedDiets = computed(() =>
-  diets.value.filter(
-    (diet) => diet.active && !ratings.value.some((rating) => rating.dietProfileId === diet.id),
+const unusedProfiles = computed(() =>
+  profiles.value.filter(
+    (profile) =>
+      profile.active && !ratings.value.some((rating) => rating.dietProfileId === profile.id),
   ),
 );
 
@@ -81,7 +84,7 @@ async function load() {
   stores.value = data.stores;
   unlinked.value = data.unlinkedStores;
   ratings.value = data.ratings;
-  diets.value = data.dietProfiles;
+  profiles.value = data.dietProfiles;
   listingUrl.value = data.product.listingUrl ?? "";
 }
 
@@ -120,7 +123,7 @@ async function saveListing() {
     <div class="card">
       <img v-if="product.imageUrl" :src="product.imageUrl" alt="" class="thumb" />
       <h2>{{ product.name }}</h2>
-      <p class="muted">Barcode: {{ product.upc || "None" }}</p>
+      <p class="muted">UPC: {{ product.upc || "None" }}</p>
       <p v-if="product.brand" class="muted">Brand: {{ product.brand }}</p>
       <p class="muted">{{ product.ingredients || "No ingredients" }}</p>
 
@@ -135,19 +138,19 @@ async function saveListing() {
           :disabled="!rating.mark"
           @click="rating.mark && cycle(rating.dietProfileId, rating.mark)"
         >
-          {{ rating.dietProfile?.name || "Diet" }}
+          {{ rating.dietProfile?.name || "Diet profile" }}
         </button>
       </div>
-      <div v-if="unusedDiets.length" class="add-bubbles">
-        <span class="muted">Add diet bubble:</span>
+      <div v-if="unusedProfiles.length" class="add-bubbles">
+        <span class="muted">Add Diet profile bubble:</span>
         <button
-          v-for="diet in unusedDiets"
-          :key="diet.id"
+          v-for="profile in unusedProfiles"
+          :key="profile.id"
           class="chip"
           type="button"
-          @click="addBubble(diet.id)"
+          @click="addBubble(profile.id)"
         >
-          + {{ diet.name }}
+          + {{ profile.name }}
         </button>
       </div>
 

@@ -10,7 +10,9 @@ This file is the domain glossary. Implementation belongs in design docs and ADRs
 
 **User**:
 The single person who uses Foodpocalypse. The same User is reached from any device by signing in.
-_Avoid_: Account, Me, Household, Family, Device, Session
+_Avoid_: Household, Family, Device, Session, Me (as a name for the User)
+
+Account is allowed on the sign-in and self-view surface. `GET /api/auth/me` is the current-principal route, not a domain type.
 
 **Email**:
 The address this User signs in with. Every User has one. It is a lookup key, not a stored profile field, and it does not change.

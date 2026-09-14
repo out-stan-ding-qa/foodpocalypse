@@ -54,14 +54,17 @@ server/src/
   db/schema.ts          Drizzle tables
   db/index.ts           SQLite open + CREATE TABLE
   routes/auth.ts        /api/auth handlers
-  routes/app.ts         products, stores, diets, shopping
+  routes/app.ts         products, stores, Diet profiles, shopping
   auth/password.ts      Argon2id hash/verify
   auth/email.ts         normalize + HMAC
   auth/jwt.ts           access/refresh JWTs
   auth/cookies.ts       cookie flags and names
   auth/session.ts       issue both tokens
   appEnv.ts             local | production | test
-  domain/               glossary rules (mark, store location, nutrients)
+  domain/               glossary rules (mark, store location, UPC)
+
+shared/src/
+  nutrients.ts          Tracked nutrient list (@foodpocalypse/domain)
 ```
 
 ## Data model
@@ -135,6 +138,34 @@ Base path: `/api/auth`. Mutating routes expect `Content-Type: application/json` 
 | POST | `/logout` | no | 204 | clears `fp_access` and `fp_refresh` |
 
 Error shape: `{ error: string }`. Auth failures are generic; they do not distinguish unknown email vs wrong password.
+
+## HTTP API (app)
+
+Base path: `/api`. Every route below requires the `fp_access` cookie and answers 401 without it. Mutating routes expect `Content-Type: application/json`. Rows are the complete surface; `server/test/api-surface.test.ts` fails if the router and this table drift apart.
+
+| Method | Path | Success | Body / notes |
+| --- | --- | --- | --- |
+| POST | `/products/upc-lookup` | 200 `{ result }` | `{ upc }`. 400 `Enter a valid UPC` before any external call; 404 when Open Food Facts has no Product; 502 when the lookup is unavailable |
+| GET | `/products` | 200 `{ products }` | each Product carries `storeIds` and raw `ratings` |
+| POST | `/products` | 201 `{ product }` | `{ name, upc?, brand?, ingredients?, nutrition?, sourceType?, imageUrl?, notes?, listingUrl? }`. A supplied UPC is parsed and stored normalized: 400 `Enter a valid UPC` when it is not a GS1 code, 400 on a duplicate |
+| GET | `/products/:id` | 200 `{ product, stores, unlinkedStores, ratings, dietProfiles }` | `ratings` are filtered to active Diet profiles with a visible mark |
+| PATCH | `/products/:id` | 200 `{ product }` | `{ listingUrl }` only; `null` clears it |
+| POST | `/products/:id/stores` | 204 | `{ storeId }`. Records an Availability |
+| POST | `/products/:id/ratings` | 201 / 200 `{ rating, recommendation, mark }` | `{ dietProfileId, rating }`. 201 on first Rating, 200 on update |
+| GET | `/stores` | 200 `{ stores }` | sorted by name |
+| POST | `/stores` | 201 `{ store }` | `{ name, address }`. 400 unless the location is a street address or an http(s) URL |
+| GET | `/diet-profiles` | 200 `{ dietProfiles }` | each Diet profile carries its Tracked nutrients |
+| POST | `/diet-profiles` | 201 `{ dietProfile }` | `{ name, nutrients? }`. Unknown nutrients are dropped |
+| PATCH | `/diet-profiles/:id` | 200 `{ dietProfile }` | `{ name?, active? }` |
+| POST | `/diet-profiles/:id/nutrients` | 204 | `{ nutrient }`. 400 off the closed list; adding twice is a no-op |
+| DELETE | `/diet-profiles/:id/nutrients/:nutrient` | 204 | nutrient is URL-encoded in the path |
+| GET | `/shopping` | 200 `{ list, items }` | opens the current list if there is none; items oldest first |
+| POST | `/shopping/items` | 201 `{ item }` | `{ name, productId? }`. A linked Product supplies the name |
+| PATCH | `/shopping/items/:id` | 200 `{ item }` | `{ checked }`. Scoped to the current list |
+| POST | `/shopping/archive` | 200 `{ list }` | archives the current list and opens a fresh one. 400 when it is empty |
+| GET | `/shopping/history` | 200 `{ lists }` | archived lists with their items, newest first |
+
+Reads are scoped to the signed-in User in SQL rather than filtered afterwards, so a join table never leaves its owner. Unmatched paths under `/api` return 404 `{ error: "Not found" }` as JSON, ahead of the SPA fallback, so a stale client URL never receives `index.html`.
 
 ## Environment
 

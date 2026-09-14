@@ -3,7 +3,7 @@ import { after, afterEach, before, beforeEach, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { createApp } from "../src/app.js";
 import { resetDb } from "../src/db/index.js";
-import { startTestServer } from "./http.js";
+import { registerUser, startTestServer } from "./http.js";
 
 const realFetch = globalThis.fetch;
 
@@ -15,14 +15,6 @@ function stubOpenFoodFacts(handler: typeof fetch) {
     }
     return realFetch(input, init);
   };
-}
-
-async function register(request: Awaited<ReturnType<typeof startTestServer>>["request"]) {
-  await request("/api/auth/register", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email: "shopper@example.com", password: "correct-horse" }),
-  });
 }
 
 describe("catalog HTTP", () => {
@@ -40,7 +32,7 @@ describe("catalog HTTP", () => {
   beforeEach(async () => {
     resetDb();
     server.jar.clear();
-    await register(server.request);
+    await registerUser(server.request);
   });
 
   afterEach(() => {
@@ -90,6 +82,46 @@ describe("catalog HTTP", () => {
     assert.equal(second.status, 400);
   });
 
+  it("rejects a Product whose UPC is not a valid GS1 code", async () => {
+    const res = await server.request("/api/products", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Mystery can", upc: "012345678901" }),
+    });
+    assert.equal(res.status, 400);
+    const body = (await res.json()) as { error: string };
+    assert.equal(body.error, "Enter a valid UPC");
+  });
+
+  it("normalizes a scanned UPC before storing it", async () => {
+    const res = await server.request("/api/products", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Oat milk", upc: "0 12345 67890 5" }),
+    });
+    assert.equal(res.status, 201);
+    const body = (await res.json()) as { product: { upc: string } };
+    assert.equal(body.product.upc, "012345678905");
+  });
+
+  it("rejects a duplicate UPC written in a different format", async () => {
+    const first = await server.request("/api/products", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Yogurt A", upc: "012345678905" }),
+    });
+    assert.equal(first.status, 201);
+
+    const second = await server.request("/api/products", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Yogurt B", upc: "0-12345-67890-5" }),
+    });
+    assert.equal(second.status, 400);
+    const body = (await second.json()) as { error: string };
+    assert.equal(body.error, "A product with this UPC already exists");
+  });
+
   it("allows two Products without a UPC", async () => {
     const first = await server.request("/api/products", {
       method: "POST",
@@ -127,6 +159,25 @@ describe("catalog HTTP", () => {
       body: JSON.stringify({ name: "Bad", address: "javascript:alert(1)" }),
     });
     assert.equal(res.status, 400);
+  });
+
+  it("lists this User's Stores by name", async () => {
+    for (const name of ["Zero Waste", "Aldi", "Market Basket"]) {
+      const created = await server.request("/api/stores", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, address: "1 Main St" }),
+      });
+      assert.equal(created.status, 201);
+    }
+
+    const res = await server.request("/api/stores");
+    assert.equal(res.status, 200);
+    const body = (await res.json()) as { stores: Array<{ name: string }> };
+    assert.deepEqual(
+      body.stores.map((store) => store.name),
+      ["Aldi", "Market Basket", "Zero Waste"],
+    );
   });
 
   it("looks up a Product by UPC for a signed-in User", async () => {
@@ -217,12 +268,4 @@ describe("catalog HTTP", () => {
     assert.equal(called, false);
   });
 
-  it("does not expose photo-parse", async () => {
-    const res = await server.request("/api/products/photo-parse", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ extractedText: "Oat milk" }),
-    });
-    assert.equal(res.status, 404);
-  });
 });

@@ -14,7 +14,7 @@ import {
   stores,
 } from "../db/schema.js";
 import { isTrafficLight, visibleMark } from "../domain/mark.js";
-import { isTrackedNutrient, TRACKED_NUTRIENTS } from "../domain/nutrients.js";
+import { isTrackedNutrient } from "@foodpocalypse/domain/nutrients";
 import { isValidStoreLocation } from "../domain/storeLocation.js";
 import { parseUpc } from "../domain/upc.js";
 import { lookupByUpc } from "../ingestion/openFoodFacts.js";
@@ -49,6 +49,26 @@ async function ownedProduct(userId: string, productId: string) {
     .get();
 }
 
+function ownedDietProfile(userId: string, profileId: string) {
+  return getDb()
+    .select()
+    .from(dietProfiles)
+    .where(and(eq(dietProfiles.id, profileId), eq(dietProfiles.userId, userId)))
+    .get();
+}
+
+function trackedNutrientsFor(userId: string) {
+  return getDb()
+    .select({
+      dietProfileId: dietProfileNutrients.dietProfileId,
+      nutrient: dietProfileNutrients.nutrient,
+    })
+    .from(dietProfileNutrients)
+    .innerJoin(dietProfiles, eq(dietProfiles.id, dietProfileNutrients.dietProfileId))
+    .where(eq(dietProfiles.userId, userId))
+    .all();
+}
+
 function activeListFor(userId: string) {
   const db = getDb();
   const existing = db
@@ -69,13 +89,6 @@ function activeListFor(userId: string) {
   db.insert(shoppingLists).values(created).run();
   return created;
 }
-
-appRouter.get("/nutrients", async (req, res) => {
-  if (!(await requireUser(req, res))) {
-    return;
-  }
-  res.json({ nutrients: TRACKED_NUTRIENTS });
-});
 
 appRouter.post("/products/upc-lookup", async (req, res) => {
   if (!(await requireUser(req, res))) {
@@ -103,15 +116,33 @@ appRouter.get("/products", async (req, res) => {
   if (!user) {
     return;
   }
-  const rows = getDb()
+  const db = getDb();
+  const rows = db
     .select()
     .from(products)
     .where(eq(products.userId, user.sub))
     .all()
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  const storeLinks = getDb().select().from(productStores).all();
-  const ratings = getDb().select().from(productDietRatings).all();
+  const storeLinks = db
+    .select({ productId: productStores.productId, storeId: productStores.storeId })
+    .from(productStores)
+    .innerJoin(products, eq(products.id, productStores.productId))
+    .where(eq(products.userId, user.sub))
+    .all();
+  const ratings = db
+    .select({
+      id: productDietRatings.id,
+      productId: productDietRatings.productId,
+      dietProfileId: productDietRatings.dietProfileId,
+      rating: productDietRatings.rating,
+      recommendation: productDietRatings.recommendation,
+      updatedAt: productDietRatings.updatedAt,
+    })
+    .from(productDietRatings)
+    .innerJoin(products, eq(products.id, productDietRatings.productId))
+    .where(eq(products.userId, user.sub))
+    .all();
 
   res.json({
     products: rows.map((row) => ({
@@ -138,7 +169,14 @@ appRouter.post("/products", async (req, res) => {
       ? req.body.nutrition
       : {};
   const listingUrl = asString(req.body?.listingUrl) || null;
-  const upc = asString(req.body?.upc) || null;
+  const scanned = asString(req.body?.upc);
+  // A UPC is optional, but a supplied one is stored parsed so the
+  // (user_id, upc) index sees one spelling of each code.
+  const upc = scanned ? parseUpc(scanned) : null;
+  if (scanned && !upc) {
+    res.status(400).json({ error: "Enter a valid UPC" });
+    return;
+  }
   const id = randomUUID();
   try {
     getDb()
@@ -199,7 +237,7 @@ appRouter.get("/products/:id", async (req, res) => {
     .from(dietProfiles)
     .where(eq(dietProfiles.userId, user.sub))
     .all();
-  const nutrients = db.select().from(dietProfileNutrients).all();
+  const nutrients = trackedNutrientsFor(user.sub);
 
   res.json({
     product: serializeProduct(product),
@@ -288,11 +326,7 @@ appRouter.post("/products/:id/ratings", async (req, res) => {
   const product = await ownedProduct(user.sub, String(req.params.id));
   const dietProfileId = asString(req.body?.dietProfileId);
   const ratingValue = asString(req.body?.rating) || "yellow";
-  const profile = getDb()
-    .select()
-    .from(dietProfiles)
-    .where(and(eq(dietProfiles.id, dietProfileId), eq(dietProfiles.userId, user.sub)))
-    .get();
+  const profile = ownedDietProfile(user.sub, dietProfileId);
   if (!product || !profile) {
     res.status(404).json({ error: "Not found" });
     return;
@@ -382,7 +416,7 @@ appRouter.post("/stores", async (req, res) => {
   res.status(201).json({ store });
 });
 
-appRouter.get("/diets", async (req, res) => {
+appRouter.get("/diet-profiles", async (req, res) => {
   const user = await requireUser(req, res);
   if (!user) {
     return;
@@ -394,9 +428,9 @@ appRouter.get("/diets", async (req, res) => {
     .where(eq(dietProfiles.userId, user.sub))
     .all()
     .sort((a, b) => a.name.localeCompare(b.name));
-  const nutrients = db.select().from(dietProfileNutrients).all();
+  const nutrients = trackedNutrientsFor(user.sub);
   res.json({
-    diets: profiles.map((profile) => ({
+    dietProfiles: profiles.map((profile) => ({
       ...profile,
       active: Boolean(profile.active),
       nutrients: nutrients
@@ -406,7 +440,7 @@ appRouter.get("/diets", async (req, res) => {
   });
 });
 
-appRouter.post("/diets", async (req, res) => {
+appRouter.post("/diet-profiles", async (req, res) => {
   const user = await requireUser(req, res);
   if (!user) {
     return;
@@ -436,21 +470,17 @@ appRouter.post("/diets", async (req, res) => {
       .run();
   }
   res.status(201).json({
-    diet: { ...profile, active: true, nutrients: selected },
+    dietProfile: { ...profile, active: true, nutrients: selected },
   });
 });
 
-appRouter.patch("/diets/:id", async (req, res) => {
+appRouter.patch("/diet-profiles/:id", async (req, res) => {
   const user = await requireUser(req, res);
   if (!user) {
     return;
   }
   const db = getDb();
-  const profile = db
-    .select()
-    .from(dietProfiles)
-    .where(and(eq(dietProfiles.id, String(req.params.id)), eq(dietProfiles.userId, user.sub)))
-    .get();
+  const profile = ownedDietProfile(user.sub, String(req.params.id));
   if (!profile) {
     res.status(404).json({ error: "Diet profile not found" });
     return;
@@ -462,10 +492,10 @@ appRouter.patch("/diets/:id", async (req, res) => {
     .set({ name, active })
     .where(eq(dietProfiles.id, profile.id))
     .run();
-  res.json({ diet: { ...profile, name, active: Boolean(active) } });
+  res.json({ dietProfile: { ...profile, name, active: Boolean(active) } });
 });
 
-appRouter.post("/diets/:id/nutrients", async (req, res) => {
+appRouter.post("/diet-profiles/:id/nutrients", async (req, res) => {
   const user = await requireUser(req, res);
   if (!user) {
     return;
@@ -476,11 +506,7 @@ appRouter.post("/diets/:id/nutrients", async (req, res) => {
     return;
   }
   const db = getDb();
-  const profile = db
-    .select()
-    .from(dietProfiles)
-    .where(and(eq(dietProfiles.id, String(req.params.id)), eq(dietProfiles.userId, user.sub)))
-    .get();
+  const profile = ownedDietProfile(user.sub, String(req.params.id));
   if (!profile) {
     res.status(404).json({ error: "Diet profile not found" });
     return;
@@ -503,18 +529,14 @@ appRouter.post("/diets/:id/nutrients", async (req, res) => {
   res.status(204).end();
 });
 
-appRouter.delete("/diets/:id/nutrients/:nutrient", async (req, res) => {
+appRouter.delete("/diet-profiles/:id/nutrients/:nutrient", async (req, res) => {
   const user = await requireUser(req, res);
   if (!user) {
     return;
   }
   const nutrient = decodeURIComponent(String(req.params.nutrient));
   const db = getDb();
-  const profile = db
-    .select()
-    .from(dietProfiles)
-    .where(and(eq(dietProfiles.id, String(req.params.id)), eq(dietProfiles.userId, user.sub)))
-    .get();
+  const profile = ownedDietProfile(user.sub, String(req.params.id));
   if (!profile) {
     res.status(404).json({ error: "Diet profile not found" });
     return;
@@ -634,7 +656,19 @@ appRouter.get("/shopping/history", async (req, res) => {
     .where(and(eq(shoppingLists.userId, user.sub), eq(shoppingLists.status, "archived")))
     .orderBy(desc(shoppingLists.archivedAt))
     .all();
-  const items = getDb().select().from(shoppingListItems).all();
+  const items = getDb()
+    .select({
+      id: shoppingListItems.id,
+      listId: shoppingListItems.listId,
+      name: shoppingListItems.name,
+      productId: shoppingListItems.productId,
+      checked: shoppingListItems.checked,
+      createdAt: shoppingListItems.createdAt,
+    })
+    .from(shoppingListItems)
+    .innerJoin(shoppingLists, eq(shoppingLists.id, shoppingListItems.listId))
+    .where(eq(shoppingLists.userId, user.sub))
+    .all();
   res.json({
     lists: lists.map((list) => ({
       ...list,

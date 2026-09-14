@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { Router, type Request, type Response } from "express";
+import { Router, type Response } from "express";
 import { eq } from "drizzle-orm";
 import { getDb } from "../db/index.js";
 import { users } from "../db/schema.js";
@@ -7,6 +7,7 @@ import { hashEmail, isValidEmail, normalizeEmail } from "../auth/email.js";
 import { hashPassword, verifyPassword } from "../auth/password.js";
 import { verifyAccessToken, verifyRefreshToken } from "../auth/jwt.js";
 import { issueSession } from "../auth/session.js";
+import { cookieValue } from "../auth/request.js";
 import {
   ACCESS_COOKIE,
   clearAuthCookies,
@@ -23,11 +24,6 @@ let dummyPasswordHash: Promise<string> | undefined;
 function dummyHash(): Promise<string> {
   dummyPasswordHash ??= hashPassword("timing-equalization-unused");
   return dummyPasswordHash;
-}
-
-function cookie(req: Request, name: string): string | undefined {
-  const value = req.cookies?.[name];
-  return typeof value === "string" && value.length > 0 ? value : undefined;
 }
 
 function sendError(res: Response, status: number, error: string) {
@@ -112,7 +108,7 @@ authRouter.post("/login", async (req, res) => {
 });
 
 authRouter.get("/me", async (req, res) => {
-  const token = cookie(req, ACCESS_COOKIE);
+  const token = cookieValue(req, ACCESS_COOKIE);
   if (!token) {
     sendError(res, 401, "Unauthorized");
     return;
@@ -126,7 +122,7 @@ authRouter.get("/me", async (req, res) => {
 });
 
 authRouter.post("/refresh", async (req, res) => {
-  const token = cookie(req, REFRESH_COOKIE);
+  const token = cookieValue(req, REFRESH_COOKIE);
   if (!token) {
     sendError(res, 401, "Unauthorized");
     return;

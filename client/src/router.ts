@@ -9,7 +9,7 @@ import Capture from "./pages/Capture.vue";
 import Stores from "./pages/Stores.vue";
 import ShoppingList from "./pages/ShoppingList.vue";
 import ShoppingHistory from "./pages/ShoppingHistory.vue";
-import Diets from "./pages/Diets.vue";
+import DietProfiles from "./pages/DietProfiles.vue";
 import { getMe } from "./api";
 
 const router = createRouter({
@@ -37,7 +37,12 @@ const router = createRouter({
       component: ShoppingHistory,
       meta: { requiresAuth: true, title: "Past Lists" },
     },
-    { path: "/diets", component: Diets, meta: { requiresAuth: true, title: "Diet Profiles" } },
+    {
+      path: "/diet-profiles",
+      component: DietProfiles,
+      meta: { requiresAuth: true, title: "Diet Profiles" },
+    },
+    { path: "/diets", redirect: "/diet-profiles" },
   ],
 });
 
