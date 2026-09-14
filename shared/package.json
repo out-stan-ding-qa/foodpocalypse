@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "exports": {
-    "./nutrients": "./src/nutrients.ts"
+    "./nutrients": "./src/nutrients.ts",
+    "./mark": "./src/mark.ts"
   }
 }

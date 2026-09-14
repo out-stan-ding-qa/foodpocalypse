@@ -1,7 +1,14 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { useRoute } from "vue-router";
-import { MapPin } from "@lucide/vue";
+import { MapPin, Star, Undo2 } from "@lucide/vue";
+import {
+  markAnnouncement,
+  markKind,
+  nextRating,
+  resetActionName,
+  type TrafficLight,
+} from "../domain/mark";
 import {
   NUTRITION_KEY_UNITS,
   NUTRITION_LABEL_TO_KEY,
@@ -15,8 +22,14 @@ import {
   type DietProfile,
   type Product,
   type Store,
-  type TrafficLight,
 } from "../app-api";
+
+type Chip = {
+  dietProfileId: string;
+  name: string;
+  rating: TrafficLight | null;
+  recommendation: TrafficLight | null;
+};
 
 const route = useRoute();
 const product = ref<Product | null>(null);
@@ -36,12 +49,6 @@ const error = ref("");
 const listingUrl = ref("");
 const amountGrams = ref(100);
 const showAll = ref(false);
-
-const nextRating: Record<TrafficLight, TrafficLight | null> = {
-  green: "yellow",
-  yellow: "red",
-  red: null,
-};
 
 function scale(value: unknown): string {
   if (typeof value !== "number" || !Number.isFinite(value)) {
@@ -70,12 +77,30 @@ const visibleNutrients = computed(() => {
   }));
 });
 
-const unusedProfiles = computed(() =>
-  profiles.value.filter(
-    (profile) =>
-      profile.active && !ratings.value.some((rating) => rating.dietProfileId === profile.id),
-  ),
+const chips = computed((): Chip[] =>
+  profiles.value
+    .filter((profile) => profile.active)
+    .map((profile) => {
+      const row = ratings.value.find((rating) => rating.dietProfileId === profile.id);
+      return {
+        dietProfileId: profile.id,
+        name: profile.name,
+        rating: row?.rating ?? null,
+        recommendation: row?.recommendation ?? null,
+      };
+    }),
 );
+
+function bubbleClass(chip: Chip) {
+  const kind = markKind(chip.rating, chip.recommendation);
+  if (kind === "empty") {
+    return "empty";
+  }
+  if (kind === "recommendation") {
+    return ["rec", chip.recommendation];
+  }
+  return chip.rating;
+}
 
 async function load() {
   const id = String(route.params.id);
@@ -96,14 +121,15 @@ onMounted(async () => {
   }
 });
 
-async function cycle(dietProfileId: string, currentRating: TrafficLight | null) {
-  const next = currentRating ? nextRating[currentRating] : "yellow";
-  await setProductRating(String(route.params.id), dietProfileId, next);
+async function onChip(chip: Chip) {
+  const kind = markKind(chip.rating, chip.recommendation);
+  const next = kind === "rating" && chip.rating ? nextRating(chip.rating) : "yellow";
+  await setProductRating(String(route.params.id), chip.dietProfileId, next);
   await load();
 }
 
-async function addDietProfileRating(dietProfileId: string) {
-  await setProductRating(String(route.params.id), dietProfileId, "yellow");
+async function resetChip(chip: Chip) {
+  await setProductRating(String(route.params.id), chip.dietProfileId, null);
   await load();
 }
 
@@ -129,29 +155,31 @@ async function saveListing() {
       <p class="muted">{{ product.ingredients || "No ingredients" }}</p>
 
       <div class="bubbles">
-        <button
-          v-for="rating in ratings"
-          :key="rating.dietProfileId"
-          class="bubble"
-          :class="rating.mark"
-          type="button"
-          :title="'Tap to change Rating'"
-          @click="cycle(rating.dietProfileId, rating.rating)"
-        >
-          {{ rating.dietProfile?.name || "Diet profile" }}
-        </button>
-      </div>
-      <div v-if="unusedProfiles.length" class="add-bubbles">
-        <span class="muted">Add Diet profile Rating:</span>
-        <button
-          v-for="profile in unusedProfiles"
-          :key="profile.id"
-          class="chip"
-          type="button"
-          @click="addDietProfileRating(profile.id)"
-        >
-          + {{ profile.name }}
-        </button>
+        <span v-for="chip in chips" :key="chip.dietProfileId" class="bubble-row">
+          <button
+            class="bubble"
+            :class="bubbleClass(chip)"
+            type="button"
+            :aria-label="markAnnouncement(chip.name, chip.rating, chip.recommendation)"
+            @click="onChip(chip)"
+          >
+            <Star
+              v-if="markKind(chip.rating, chip.recommendation) === 'recommendation'"
+              :size="14"
+              aria-hidden="true"
+            />
+            {{ chip.name }}
+          </button>
+          <button
+            v-if="markKind(chip.rating, chip.recommendation) === 'rating'"
+            class="bubble-reset"
+            type="button"
+            :aria-label="resetActionName(chip.recommendation)"
+            @click="resetChip(chip)"
+          >
+            <Undo2 :size="16" aria-hidden="true" />
+          </button>
+        </span>
       </div>
 
       <div class="nutrition">
