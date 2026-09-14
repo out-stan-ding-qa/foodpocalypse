@@ -480,7 +480,7 @@ pre {
   cursor: pointer;
 }
 
-.diet-head {
+.diet-profile-head {
   display: flex;
   align-items: center;
   gap: 0.6rem;

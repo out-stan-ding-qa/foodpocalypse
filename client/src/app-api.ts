@@ -2,6 +2,13 @@ import { api } from "./api";
 
 export type TrafficLight = "green" | "yellow" | "red";
 
+/** Raw Rating and Recommendation from GET /products. No visible mark. */
+export type ProductRatingRow = {
+  dietProfileId: string;
+  rating: TrafficLight | null;
+  recommendation: TrafficLight | null;
+};
+
 export type Product = {
   id: string;
   name: string;
@@ -14,12 +21,7 @@ export type Product = {
   notes: string;
   listingUrl: string | null;
   storeIds?: string[];
-  ratings?: Array<{
-    dietProfileId: string;
-    rating: TrafficLight | null;
-    recommendation: TrafficLight | null;
-    mark: TrafficLight | null;
-  }>;
+  ratings?: ProductRatingRow[];
 };
 
 export type Store = { id: string; name: string; address: string };
@@ -55,10 +57,6 @@ export type UpcResult = {
   listingUrl: string | null;
 };
 
-export function listNutrients() {
-  return api<{ nutrients: string[] }>("/api/nutrients");
-}
-
 export function listProducts() {
   return api<{ products: Product[] }>("/api/products");
 }
@@ -75,13 +73,12 @@ export function getProduct(id: string) {
     product: Product;
     stores: Store[];
     unlinkedStores: Store[];
-    ratings: Array<{
-      dietProfileId: string;
-      rating: TrafficLight | null;
-      recommendation: TrafficLight | null;
-      mark: TrafficLight | null;
-      dietProfile: DietProfile | null;
-    }>;
+    ratings: Array<
+      ProductRatingRow & {
+        mark: TrafficLight | null;
+        dietProfile: DietProfile | null;
+      }
+    >;
     dietProfiles: DietProfile[];
   }>(`/api/products/${id}`);
 }
@@ -147,33 +144,33 @@ export function deleteStore(id: string) {
   return api<void>(`/api/stores/${id}`, { method: "DELETE" });
 }
 
-export function listDiets() {
-  return api<{ diets: DietProfile[] }>("/api/diets");
+export function listDietProfiles() {
+  return api<{ dietProfiles: DietProfile[] }>("/api/diet-profiles");
 }
 
-export function createDiet(name: string, nutrients: string[]) {
-  return api<{ diet: DietProfile }>("/api/diets", {
+export function createDietProfile(name: string, nutrients: string[]) {
+  return api<{ dietProfile: DietProfile }>("/api/diet-profiles", {
     method: "POST",
     body: JSON.stringify({ name, nutrients }),
   });
 }
 
-export function patchDiet(id: string, body: { name?: string; active?: boolean }) {
-  return api<{ diet: DietProfile }>(`/api/diets/${id}`, {
+export function patchDietProfile(id: string, body: { name?: string; active?: boolean }) {
+  return api<{ dietProfile: DietProfile }>(`/api/diet-profiles/${id}`, {
     method: "PATCH",
     body: JSON.stringify(body),
   });
 }
 
-export function addDietNutrient(id: string, nutrient: string) {
-  return api<void>(`/api/diets/${id}/nutrients`, {
+export function addDietProfileNutrient(id: string, nutrient: string) {
+  return api<void>(`/api/diet-profiles/${id}/nutrients`, {
     method: "POST",
     body: JSON.stringify({ nutrient }),
   });
 }
 
-export function removeDietNutrient(id: string, nutrient: string) {
-  return api<void>(`/api/diets/${id}/nutrients/${encodeURIComponent(nutrient)}`, {
+export function removeDietProfileNutrient(id: string, nutrient: string) {
+  return api<void>(`/api/diet-profiles/${id}/nutrients/${encodeURIComponent(nutrient)}`, {
     method: "DELETE",
   });
 }

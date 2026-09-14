@@ -15,6 +15,10 @@ export function createApp() {
   app.use(cookieParser());
   app.use("/api/auth", authRouter);
   app.use("/api", appRouter);
+  // Ahead of the SPA fallback below, so an unmatched API path never answers with index.html.
+  app.use("/api", (_req, res) => {
+    res.status(404).json({ error: "Not found" });
+  });
   app.use(
     (
       err: unknown,

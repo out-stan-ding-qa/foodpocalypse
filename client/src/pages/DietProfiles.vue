@@ -3,15 +3,15 @@ import { onMounted, ref } from "vue";
 import { Plus, Tag } from "@lucide/vue";
 import { TRACKED_NUTRIENTS } from "../domain/nutrients";
 import {
-  addDietNutrient,
-  createDiet,
-  listDiets,
-  patchDiet,
-  removeDietNutrient,
+  addDietProfileNutrient,
+  createDietProfile,
+  listDietProfiles,
+  patchDietProfile,
+  removeDietProfileNutrient,
   type DietProfile,
 } from "../app-api";
 
-const diets = ref<DietProfile[]>([]);
+const profiles = ref<DietProfile[]>([]);
 const name = ref("");
 const selected = ref<string[]>(["Fiber", "Protein"]);
 const error = ref("");
@@ -19,14 +19,14 @@ const editingId = ref<string | null>(null);
 const editName = ref("");
 
 async function load() {
-  diets.value = (await listDiets()).diets;
+  profiles.value = (await listDietProfiles()).dietProfiles;
 }
 
 onMounted(async () => {
   try {
     await load();
   } catch (err) {
-    error.value = err instanceof Error ? err.message : "Could not load diets";
+    error.value = err instanceof Error ? err.message : "Could not load Diet profiles";
   }
 });
 
@@ -41,37 +41,37 @@ function toggleSelect(nutrient: string) {
 async function onCreate() {
   error.value = "";
   try {
-    await createDiet(name.value, selected.value);
+    await createDietProfile(name.value, selected.value);
     name.value = "";
     await load();
   } catch (err) {
-    error.value = err instanceof Error ? err.message : "Could not create profile";
+    error.value = err instanceof Error ? err.message : "Could not create Diet profile";
   }
 }
 
-async function toggle(diet: DietProfile) {
-  await patchDiet(diet.id, { active: !diet.active });
+async function toggle(profile: DietProfile) {
+  await patchDietProfile(profile.id, { active: !profile.active });
   await load();
 }
 
-async function saveName(diet: DietProfile) {
-  await patchDiet(diet.id, { name: editName.value });
+async function saveName(profile: DietProfile) {
+  await patchDietProfile(profile.id, { name: editName.value });
   editingId.value = null;
   await load();
 }
 
-async function addNutrient(diet: DietProfile, nutrient: string) {
-  await addDietNutrient(diet.id, nutrient);
+async function addNutrient(profile: DietProfile, nutrient: string) {
+  await addDietProfileNutrient(profile.id, nutrient);
   await load();
 }
 
-async function dropNutrient(diet: DietProfile, nutrient: string) {
-  await removeDietNutrient(diet.id, nutrient);
+async function dropNutrient(profile: DietProfile, nutrient: string) {
+  await removeDietProfileNutrient(profile.id, nutrient);
   await load();
 }
 
-function unused(diet: DietProfile) {
-  return TRACKED_NUTRIENTS.filter((nutrient) => !diet.nutrients.includes(nutrient));
+function untrackedNutrients(profile: DietProfile) {
+  return TRACKED_NUTRIENTS.filter((nutrient) => !profile.nutrients.includes(nutrient));
 }
 </script>
 
@@ -83,43 +83,43 @@ function unused(diet: DietProfile) {
     </p>
     <p v-if="error" class="error">{{ error }}</p>
 
-    <div v-for="diet in diets" :key="diet.id" class="card">
-      <div class="diet-head">
-        <button class="switch" :class="{ on: diet.active }" type="button" @click="toggle(diet)">
+    <div v-for="profile in profiles" :key="profile.id" class="card">
+      <div class="diet-profile-head">
+        <button class="switch" :class="{ on: profile.active }" type="button" @click="toggle(profile)">
           <span></span>
         </button>
-        <form v-if="editingId === diet.id" class="inline grow" @submit.prevent="saveName(diet)">
+        <form v-if="editingId === profile.id" class="inline grow" @submit.prevent="saveName(profile)">
           <input v-model="editName" />
           <button type="submit">Save</button>
         </form>
-        <h3 v-else>{{ diet.name }}</h3>
+        <h3 v-else>{{ profile.name }}</h3>
         <button
-          v-if="editingId !== diet.id"
+          v-if="editingId !== profile.id"
           class="text-btn"
           type="button"
-          @click="editingId = diet.id; editName = diet.name"
+          @click="editingId = profile.id; editName = profile.name"
         >
           Edit
         </button>
       </div>
-      <p class="label">Important Nutrients</p>
+      <p class="label">Tracked nutrients</p>
       <div class="chips">
         <button
-          v-for="nutrient in diet.nutrients"
+          v-for="nutrient in profile.nutrients"
           :key="nutrient"
           class="tag"
           type="button"
           :title="'Remove'"
-          @click="dropNutrient(diet, nutrient)"
+          @click="dropNutrient(profile, nutrient)"
         >
           <Tag :size="12" /> {{ nutrient }}
         </button>
         <button
-          v-for="nutrient in unused(diet)"
+          v-for="nutrient in untrackedNutrients(profile)"
           :key="`add-${nutrient}`"
           class="chip dashed"
           type="button"
-          @click="addNutrient(diet, nutrient)"
+          @click="addNutrient(profile, nutrient)"
         >
           <Plus :size="12" /> {{ nutrient }}
         </button>
