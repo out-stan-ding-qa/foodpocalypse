@@ -55,6 +55,7 @@ server/src/
   db/index.ts           SQLite open + CREATE TABLE
   routes/auth.ts        /api/auth handlers
   routes/app.ts         products, stores, Diet profiles, shopping
+  ingestion/openFoodFacts.ts  UPC lookup (Open Food Facts)
   auth/password.ts      Argon2id hash/verify
   auth/email.ts         normalize + HMAC
   auth/jwt.ts           access/refresh JWTs
@@ -154,6 +155,8 @@ Base path: `/api`. Every route below requires the `fp_access` cookie and answers
 | POST | `/products/:id/ratings` | 201 / 200 `{ rating, recommendation, mark }` | `{ dietProfileId, rating }`. 201 on first Rating, 200 on update |
 | GET | `/stores` | 200 `{ stores }` | sorted by name |
 | POST | `/stores` | 201 `{ store }` | `{ name, address }`. 400 unless the location is a street address or an http(s) URL |
+| PATCH | `/stores/:id` | 200 `{ store }` | `{ name, address }`. Same location rule as create; both fields required |
+| DELETE | `/stores/:id` | 204 | Removes the Store. Availability rows cascade; Products stay |
 | GET | `/diet-profiles` | 200 `{ dietProfiles }` | each Diet profile carries its Tracked nutrients |
 | POST | `/diet-profiles` | 201 `{ dietProfile }` | `{ name, nutrients? }`. Unknown nutrients are dropped |
 | PATCH | `/diet-profiles/:id` | 200 `{ dietProfile }` | `{ name?, active? }` |
@@ -185,6 +188,18 @@ Local loads [`server/.env`](../server/.env.example). Production and test do not:
 | `DEFAULT_USER_PASSWORD` | no | Password for that seed User (8–128 characters) |
 
 `APP_ENV=production` enables `Secure` cookies and static SPA hosting (`client/dist`).
+
+If both default User vars are set and SQLite has no `users` row, startup seeds that Email and Password. An empty file after a host wipe re-seeds; existing Users are left alone.
+
+## Production hosting
+
+Production is **one Node process**: Express serves `/api` and `client/dist` on the same origin so `SameSite=Strict` cookies work. Split the SPA onto another host only if session cookies are redesigned.
+
+The process needs a writable filesystem for SQLite and a build that can compile native addons (`better-sqlite3`, `argon2`). That is a long-running Node web service, not a static site or an edge/serverless function (Vercel, Netlify, Cloudflare Workers, GitHub Pages).
+
+**Current host:** Render Free Web Service, Hobby workspace, GitHub `main`. How-to is in [`README.md`](../README.md). Disk is ephemeral: sleep, restart, and redeploy wipe the SQLite file. The default User comes back if those env vars are set; catalog and shopping data do not. Durable SQLite on this class of host is [KAN-6](https://stilly.atlassian.net/browse/KAN-6) (Litestream → R2), not chosen.
+
+UPC lookup needs outbound HTTPS to Open Food Facts. `trust proxy` stays off.
 
 ## Privacy checklist
 
