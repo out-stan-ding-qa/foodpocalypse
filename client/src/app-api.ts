@@ -1,5 +1,7 @@
 import { api } from "./api";
+import type { Nutrient } from "./domain/nutrients";
 
+export type { Nutrient };
 export type TrafficLight = "green" | "yellow" | "red";
 
 /** Raw Rating and Recommendation from GET /products. No visible mark. */
@@ -143,6 +145,10 @@ export function updateStore(id: string, name: string, address: string) {
 
 export function deleteStore(id: string) {
   return api<void>(`/api/stores/${id}`, { method: "DELETE" });
+}
+
+export function listNutrients() {
+  return api<{ nutrients: Nutrient[] }>("/api/nutrients");
 }
 
 export function listDietProfiles() {

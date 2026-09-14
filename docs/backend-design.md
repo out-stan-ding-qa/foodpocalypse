@@ -1,6 +1,6 @@
 # Backend design
 
-This document describes the Foodpocalypse API: a privacy-first Node.js (Express) service with SQLite, Argon2id passwords, and stateless JWT cookies. It is the source of truth for backend architecture. Operational how-to (install, run) stays out of this file. Domain language is in [`CONTEXT.md`](../CONTEXT.md). Identity decisions: [ADR 0002](adr/0002-password-required.md), [ADR 0003](adr/0003-no-passkeys.md). Rating vs Recommendation: [ADR 0001](adr/0001-rating-overrides-recommendation.md).
+This document describes the Foodpocalypse API: a privacy-first Node.js (Express) service with SQLite, Argon2id passwords, and stateless JWT cookies. It is the source of truth for backend architecture. Operational how-to (install, run) stays out of this file. Domain language is in [`CONTEXT.md`](../CONTEXT.md). Identity decisions: [ADR 0002](adr/0002-password-required.md), [ADR 0003](adr/0003-no-passkeys.md). Rating vs Recommendation: [ADR 0001](adr/0001-rating-overrides-recommendation.md). Nutrient ids: [ADR 0005](adr/0005-off-nutrient-ids.md).
 
 Code lives in [`server/`](../server/).
 
@@ -62,10 +62,10 @@ server/src/
   auth/cookies.ts       cookie flags and names
   auth/session.ts       issue both tokens
   appEnv.ts             local | production | test
-  domain/               glossary rules (mark, store location, UPC)
+  domain/               glossary rules (mark, store location, UPC, Nutrients)
 
 shared/src/
-  nutrients.ts          Tracked nutrient list (@foodpocalypse/domain)
+  nutrients.ts          Nutrition Facts slice of Open Food Facts ids (@foodpocalypse/domain)
 ```
 
 ## Data model
@@ -146,7 +146,7 @@ Base path: `/api`. Every route below requires the `fp_access` cookie and answers
 
 | Method | Path | Success | Body / notes |
 | --- | --- | --- | --- |
-| POST | `/products/upc-lookup` | 200 `{ result }` | `{ upc }`. 400 `Enter a valid UPC` before any external call; 404 when Open Food Facts has no Product; 502 when the lookup is unavailable |
+| POST | `/products/upc-lookup` | 200 `{ result }` | `{ upc }`. 400 `Enter a valid UPC` before any external call; 404 when Open Food Facts has no Product; 502 when the lookup is unavailable. `nutrition` keys are OFF ids from the Nutrition Facts slice |
 | GET | `/products` | 200 `{ products }` | each Product carries `storeIds` and raw `ratings` |
 | POST | `/products` | 201 `{ product }` | `{ name, upc?, brand?, ingredients?, nutrition?, sourceType?, imageUrl?, notes?, listingUrl? }`. A supplied UPC is parsed and stored normalized: 400 `Enter a valid UPC` when it is not a GS1 code, 400 on a duplicate |
 | GET | `/products/:id` | 200 `{ product, stores, unlinkedStores, ratings, dietProfiles }` | `ratings` are filtered to active Diet profiles with a visible mark |
@@ -157,10 +157,11 @@ Base path: `/api`. Every route below requires the `fp_access` cookie and answers
 | POST | `/stores` | 201 `{ store }` | `{ name, address }`. 400 unless the location is a street address or an http(s) URL |
 | PATCH | `/stores/:id` | 200 `{ store }` | `{ name, address }`. Same location rule as create; both fields required |
 | DELETE | `/stores/:id` | 204 | Removes the Store. Availability rows cascade; Products stay |
-| GET | `/diet-profiles` | 200 `{ dietProfiles }` | each Diet profile carries its Tracked nutrients |
+| GET | `/nutrients` | 200 `{ nutrients }` | Nutrition Facts slice: `{ id, name, unit }` per Nutrient. Ids are Open Food Facts (`potassium`, `vitamin-b12`) |
+| GET | `/diet-profiles` | 200 `{ dietProfiles }` | each Diet profile carries its Tracked nutrients as those ids |
 | POST | `/diet-profiles` | 201 `{ dietProfile }` | `{ name, nutrients? }`. Unknown nutrients are dropped |
 | PATCH | `/diet-profiles/:id` | 200 `{ dietProfile }` | `{ name?, active? }` |
-| POST | `/diet-profiles/:id/nutrients` | 204 | `{ nutrient }`. 400 off the closed list; adding twice is a no-op |
+| POST | `/diet-profiles/:id/nutrients` | 204 | `{ nutrient }` as an OFF id. 400 off the closed list; adding twice is a no-op |
 | DELETE | `/diet-profiles/:id/nutrients/:nutrient` | 204 | nutrient is URL-encoded in the path |
 | GET | `/shopping` | 200 `{ list, items }` | opens the current list if there is none; items oldest first |
 | POST | `/shopping/items` | 201 `{ item }` | `{ name, productId? }`. A linked Product supplies the name |

@@ -76,8 +76,8 @@ describe("cross-User isolation", () => {
 
   beforeEach(async () => {
     resetDb();
-    alice = await seed(ALICE, "Alice", "Fiber");
-    await seed(BOB, "Bob", "Calcium");
+    alice = await seed(ALICE, "Alice", "fiber");
+    await seed(BOB, "Bob", "calcium");
     await signInAs(ALICE);
   });
 
@@ -110,7 +110,7 @@ describe("cross-User isolation", () => {
       body.dietProfiles.map((profile) => profile.id),
       [alice.dietProfile.id],
     );
-    assert.deepEqual(body.dietProfiles[0]?.nutrients, ["Fiber"]);
+    assert.deepEqual(body.dietProfiles[0]?.nutrients, ["fiber"]);
   });
 
   it("lists only this User's Diet profiles with their own Tracked nutrients", async () => {
@@ -122,7 +122,7 @@ describe("cross-User isolation", () => {
       body.dietProfiles.map((profile) => profile.id),
       [alice.dietProfile.id],
     );
-    assert.deepEqual(body.dietProfiles[0]?.nutrients, ["Fiber"]);
+    assert.deepEqual(body.dietProfiles[0]?.nutrients, ["fiber"]);
   });
 
   it("returns only this User's archived Shopping lists and their items", async () => {
