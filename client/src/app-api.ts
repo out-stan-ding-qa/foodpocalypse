@@ -2,6 +2,13 @@ import { api } from "./api";
 
 export type TrafficLight = "green" | "yellow" | "red";
 
+/** Raw Rating and Recommendation from GET /products. No visible mark. */
+export type ProductRatingRow = {
+  dietProfileId: string;
+  rating: TrafficLight | null;
+  recommendation: TrafficLight | null;
+};
+
 export type Product = {
   id: string;
   name: string;
@@ -14,12 +21,7 @@ export type Product = {
   notes: string;
   listingUrl: string | null;
   storeIds?: string[];
-  ratings?: Array<{
-    dietProfileId: string;
-    rating: TrafficLight | null;
-    recommendation: TrafficLight | null;
-    mark: TrafficLight | null;
-  }>;
+  ratings?: ProductRatingRow[];
 };
 
 export type Store = { id: string; name: string; address: string };
@@ -71,13 +73,12 @@ export function getProduct(id: string) {
     product: Product;
     stores: Store[];
     unlinkedStores: Store[];
-    ratings: Array<{
-      dietProfileId: string;
-      rating: TrafficLight | null;
-      recommendation: TrafficLight | null;
-      mark: TrafficLight | null;
-      dietProfile: DietProfile | null;
-    }>;
+    ratings: Array<
+      ProductRatingRow & {
+        mark: TrafficLight | null;
+        dietProfile: DietProfile | null;
+      }
+    >;
     dietProfiles: DietProfile[];
   }>(`/api/products/${id}`);
 }
