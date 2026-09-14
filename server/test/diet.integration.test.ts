@@ -61,6 +61,33 @@ describe("diet HTTP", () => {
     assert.equal(body.ratings[0]?.mark, "red");
   });
 
+  it("rejects a missing Rating without writing a mark", async () => {
+    const productRes = await server.request("/api/products", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Yogurt" }),
+    });
+    const { product } = (await productRes.json()) as { product: { id: string } };
+    const profileRes = await server.request("/api/diet-profiles", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Low sodium", nutrients: ["Protein"] }),
+    });
+    const { dietProfile } = (await profileRes.json()) as { dietProfile: { id: string } };
+
+    const rated = await server.request(`/api/products/${product.id}/ratings`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dietProfileId: dietProfile.id }),
+    });
+    assert.equal(rated.status, 400);
+    assert.deepEqual(await rated.json(), { error: "Rating is required" });
+
+    const detail = await server.request(`/api/products/${product.id}`);
+    const body = (await detail.json()) as { ratings: unknown[] };
+    assert.equal(body.ratings.length, 0);
+  });
+
   it("shows a Recommendation when there is no Rating", async () => {
     const productRes = await server.request("/api/products", {
       method: "POST",

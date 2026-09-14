@@ -348,10 +348,14 @@ appRouter.post("/products/:id/ratings", async (req, res) => {
   }
   const product = await ownedProduct(user.sub, String(req.params.id));
   const dietProfileId = asString(req.body?.dietProfileId);
-  const ratingValue = asString(req.body?.rating) || "yellow";
+  const ratingValue = asString(req.body?.rating);
   const profile = ownedDietProfile(user.sub, dietProfileId);
   if (!product || !profile) {
     res.status(404).json({ error: "Not found" });
+    return;
+  }
+  if (!ratingValue) {
+    res.status(400).json({ error: "Rating is required" });
     return;
   }
   if (!isTrafficLight(ratingValue)) {
