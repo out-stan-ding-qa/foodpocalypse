@@ -14,7 +14,7 @@ import {
   stores,
 } from "../db/schema.js";
 import { isTrafficLight, visibleMark } from "../domain/mark.js";
-import { isTrackedNutrient } from "@foodpocalypse/domain/nutrients";
+import { isNutrientId, NUTRIENTS } from "@foodpocalypse/domain/nutrients";
 import { isValidStoreLocation } from "../domain/storeLocation.js";
 import { parseUpc } from "../domain/upc.js";
 import { lookupByUpc } from "../ingestion/openFoodFacts.js";
@@ -511,6 +511,13 @@ appRouter.delete("/stores/:id", async (req, res) => {
   res.status(204).end();
 });
 
+appRouter.get("/nutrients", async (req, res) => {
+  if (!(await requireUser(req, res))) {
+    return;
+  }
+  res.json({ nutrients: NUTRIENTS });
+});
+
 appRouter.get("/diet-profiles", async (req, res) => {
   const user = await requireUser(req, res);
   if (!user) {
@@ -547,7 +554,7 @@ appRouter.post("/diet-profiles", async (req, res) => {
   }
   const selected = Array.isArray(req.body?.nutrients)
     ? (req.body.nutrients as unknown[]).filter(
-        (item): item is string => typeof item === "string" && isTrackedNutrient(item),
+        (item): item is string => typeof item === "string" && isNutrientId(item),
       )
     : [];
   const profile = {
@@ -596,8 +603,8 @@ appRouter.post("/diet-profiles/:id/nutrients", async (req, res) => {
     return;
   }
   const nutrient = asString(req.body?.nutrient);
-  if (!isTrackedNutrient(nutrient)) {
-    res.status(400).json({ error: "Choose a tracked nutrient from the list" });
+  if (!isNutrientId(nutrient)) {
+    res.status(400).json({ error: "Choose a Nutrient from the list" });
     return;
   }
   const db = getDb();

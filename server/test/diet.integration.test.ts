@@ -34,7 +34,7 @@ describe("diet HTTP", () => {
     const profileRes = await server.request("/api/diet-profiles", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "Low sodium", nutrients: ["Protein"] }),
+      body: JSON.stringify({ name: "Low sodium", nutrients: ["proteins"] }),
     });
     const { dietProfile } = (await profileRes.json()) as { dietProfile: { id: string } };
     return { product, dietProfile };
@@ -63,7 +63,7 @@ describe("diet HTTP", () => {
     const profileRes = await server.request("/api/diet-profiles", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "Low sodium", nutrients: ["Protein"] }),
+      body: JSON.stringify({ name: "Low sodium", nutrients: ["proteins"] }),
     });
     const { dietProfile } = (await profileRes.json()) as { dietProfile: { id: string } };
 
@@ -184,7 +184,7 @@ describe("diet HTTP", () => {
     const profileRes = await server.request("/api/diet-profiles", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "High protein", nutrients: ["Protein"] }),
+      body: JSON.stringify({ name: "High protein", nutrients: ["proteins"] }),
     });
     const { dietProfile } = (await profileRes.json()) as { dietProfile: { id: string } };
 
@@ -208,6 +208,31 @@ describe("diet HTTP", () => {
     assert.equal(body.ratings[0]?.rating, null);
   });
 
+  it("lists the Nutrition Facts slice as Nutrients", async () => {
+    const res = await server.request("/api/nutrients");
+    assert.equal(res.status, 200);
+    const body = (await res.json()) as {
+      nutrients: Array<{ id: string; name: string; unit: string }>;
+    };
+    const ids = body.nutrients.map((nutrient) => nutrient.id);
+    assert.ok(ids.includes("potassium"));
+    assert.ok(ids.includes("phosphorus"));
+    assert.ok(ids.includes("sodium"));
+    assert.ok(ids.includes("energy-kcal"));
+    assert.ok(!ids.includes("salt"));
+    assert.ok(!ids.includes("Protein"));
+    assert.deepEqual(
+      body.nutrients.find((nutrient) => nutrient.id === "potassium"),
+      { id: "potassium", name: "Potassium", unit: "g" },
+    );
+  });
+
+  it("does not list Nutrients without a session", async () => {
+    server.jar.clear();
+    const res = await server.request("/api/nutrients");
+    assert.equal(res.status, 401);
+  });
+
   it("adds a Tracked nutrient to a Diet profile once", async () => {
     const profileRes = await server.request("/api/diet-profiles", {
       method: "POST",
@@ -219,22 +244,22 @@ describe("diet HTTP", () => {
     const first = await server.request(`/api/diet-profiles/${dietProfile.id}/nutrients`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ nutrient: "Iron" }),
+      body: JSON.stringify({ nutrient: "potassium" }),
     });
     const again = await server.request(`/api/diet-profiles/${dietProfile.id}/nutrients`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ nutrient: "Iron" }),
+      body: JSON.stringify({ nutrient: "potassium" }),
     });
     assert.equal(first.status, 204);
     assert.equal(again.status, 204);
 
     const list = await server.request("/api/diet-profiles");
     const body = (await list.json()) as { dietProfiles: Array<{ nutrients: string[] }> };
-    assert.deepEqual(body.dietProfiles[0]?.nutrients, ["Iron"]);
+    assert.deepEqual(body.dietProfiles[0]?.nutrients, ["potassium"]);
   });
 
-  it("rejects a nutrient that is not on the tracked list", async () => {
+  it("rejects a nutrient that is not on the Nutrition Facts slice", async () => {
     const profileRes = await server.request("/api/diet-profiles", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -242,19 +267,25 @@ describe("diet HTTP", () => {
     });
     const { dietProfile } = (await profileRes.json()) as { dietProfile: { id: string } };
 
-    const res = await server.request(`/api/diet-profiles/${dietProfile.id}/nutrients`, {
+    const homemade = await server.request(`/api/diet-profiles/${dietProfile.id}/nutrients`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ nutrient: "Sodium" }),
+      body: JSON.stringify({ nutrient: "Protein" }),
     });
-    assert.equal(res.status, 400);
+    const alias = await server.request(`/api/diet-profiles/${dietProfile.id}/nutrients`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nutrient: "salt" }),
+    });
+    assert.equal(homemade.status, 400);
+    assert.equal(alias.status, 400);
   });
 
   it("returns 404 when adding a Tracked nutrient to an unknown Diet profile", async () => {
     const res = await server.request("/api/diet-profiles/no-such-profile/nutrients", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ nutrient: "Iron" }),
+      body: JSON.stringify({ nutrient: "iron" }),
     });
     assert.equal(res.status, 404);
   });
@@ -263,19 +294,19 @@ describe("diet HTTP", () => {
     const profileRes = await server.request("/api/diet-profiles", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "Low sodium", nutrients: ["Fiber", "Vitamin B-12"] }),
+      body: JSON.stringify({ name: "Low sodium", nutrients: ["fiber", "vitamin-b12"] }),
     });
     const { dietProfile } = (await profileRes.json()) as { dietProfile: { id: string } };
 
     const res = await server.request(
-      `/api/diet-profiles/${dietProfile.id}/nutrients/${encodeURIComponent("Vitamin B-12")}`,
+      `/api/diet-profiles/${dietProfile.id}/nutrients/${encodeURIComponent("vitamin-b12")}`,
       { method: "DELETE" },
     );
     assert.equal(res.status, 204);
 
     const list = await server.request("/api/diet-profiles");
     const body = (await list.json()) as { dietProfiles: Array<{ nutrients: string[] }> };
-    assert.deepEqual(body.dietProfiles[0]?.nutrients, ["Fiber"]);
+    assert.deepEqual(body.dietProfiles[0]?.nutrients, ["fiber"]);
   });
 
   it("hides marks for an inactive Diet profile", async () => {
@@ -288,7 +319,7 @@ describe("diet HTTP", () => {
     const profileRes = await server.request("/api/diet-profiles", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "Low sodium", nutrients: ["Protein"] }),
+      body: JSON.stringify({ name: "Low sodium", nutrients: ["proteins"] }),
     });
     const { dietProfile } = (await profileRes.json()) as { dietProfile: { id: string } };
     await server.request(`/api/products/${product.id}/ratings`, {

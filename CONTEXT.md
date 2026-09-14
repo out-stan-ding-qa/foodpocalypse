@@ -49,9 +49,13 @@ The fact that a Product is sold at a Store.
 A named set of Tracked nutrients this User cares about. It is either active (in play on Products) or inactive (kept, but hidden from Product scoring).
 _Avoid_: Condition, Diet, Dietary profile, Dietary Profiles
 
+**Nutrient**:
+An Open Food Facts nutrient id with a unit and a display name. Identity is the id (`potassium`, `vitamin-b12`), not an FDA name or a homemade label. The catalog is a Nutrition Facts slice of that taxonomy.
+_Avoid_: using a display name or camelCase alias as the id
+
 **Tracked nutrient**:
-A nutrient a Diet profile cares about, chosen from a closed list.
-_Avoid_: Nutrient (when you mean this), Condition nutrient
+A Nutrient this Diet profile cares about, chosen from that closed catalog.
+_Avoid_: treating Nutrient and Tracked nutrient as the same thing, Condition nutrient
 
 **Recommendation**:
 The system's judgment of a Product for one Diet profile: green (fits), yellow (caution), or red (avoid), derived from that Product's nutrition and the profile's Tracked nutrients. The derivation rule is unspecified; until it exists there is often no Recommendation.

@@ -239,7 +239,12 @@ describe("catalog HTTP", () => {
             brands: "Oaty",
             image_front_url: "https://images.example.com/oat.jpg",
             ingredients_text: "Oat base, rapeseed oil",
-            nutriments: { "energy-kcal_100g": 48, proteins_100g: 1.1 },
+            nutriments: {
+              "energy-kcal_100g": 48,
+              proteins_100g: 1.1,
+              potassium_100g: 0.15,
+              salt_100g: 0.2,
+            },
           },
         }),
         { status: 200, headers: { "content-type": "application/json" } },
@@ -253,12 +258,24 @@ describe("catalog HTTP", () => {
     });
     assert.equal(res.status, 200);
     const body = (await res.json()) as {
-      result: { name: string; brand: string; upc: string; listingUrl: string | null };
+      result: {
+        name: string;
+        brand: string;
+        upc: string;
+        listingUrl: string | null;
+        nutrition: Record<string, number>;
+      };
     };
     assert.equal(body.result.name, "Test Fixture Oat Milk");
     assert.equal(body.result.brand, "Oaty");
     assert.equal(body.result.upc, "012345678905");
     assert.equal(body.result.listingUrl, null);
+    assert.equal(body.result.nutrition["energy-kcal"], 48);
+    assert.equal(body.result.nutrition.proteins, 1.1);
+    assert.equal(body.result.nutrition.potassium, 0.15);
+    assert.equal(body.result.nutrition.salt, undefined);
+    assert.equal(body.result.nutrition.calories, undefined);
+    assert.equal(body.result.nutrition.protein, undefined);
   });
 
   it("does not treat an Open Food Facts outage as a missing Product", async () => {

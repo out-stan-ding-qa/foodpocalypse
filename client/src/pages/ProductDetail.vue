@@ -2,11 +2,7 @@
 import { computed, onMounted, ref } from "vue";
 import { useRoute } from "vue-router";
 import { MapPin } from "@lucide/vue";
-import {
-  NUTRITION_KEY_UNITS,
-  NUTRITION_LABEL_TO_KEY,
-  type TrackedNutrient,
-} from "../domain/nutrients";
+import { nutrientById } from "../domain/nutrients";
 import {
   getProduct,
   linkStore,
@@ -52,22 +48,25 @@ function scale(value: unknown): string {
 
 const visibleNutrients = computed(() => {
   const nutrition = product.value?.nutrition ?? {};
-  const activeLabels = profiles.value
+  const keys = new Set<string>(["energy-kcal"]);
+  for (const nutrient of profiles.value
     .filter((profile) => profile.active)
-    .flatMap((profile) => profile.nutrients);
-  const keys = new Set<string>(["calories"]);
-  for (const label of activeLabels) {
-    if (label in NUTRITION_LABEL_TO_KEY) {
-      keys.add(NUTRITION_LABEL_TO_KEY[label as TrackedNutrient]);
-    }
+    .flatMap((profile) => profile.nutrients)) {
+    keys.add(nutrient);
   }
   const allKeys = Object.keys(nutrition);
-  const selected = showAll.value ? allKeys : allKeys.filter((key) => keys.has(key) || key === "calories");
-  return selected.map((key) => ({
-    key,
-    value: nutrition[key],
-    unit: NUTRITION_KEY_UNITS[key] || "",
-  }));
+  const selected = showAll.value
+    ? allKeys
+    : allKeys.filter((key) => keys.has(key) || key === "energy-kcal");
+  return selected.map((key) => {
+    const nutrient = nutrientById(key);
+    return {
+      key,
+      name: nutrient?.name ?? key,
+      value: nutrition[key],
+      unit: nutrient?.unit ?? "",
+    };
+  });
 });
 
 const unusedProfiles = computed(() =>
@@ -163,7 +162,7 @@ async function saveListing() {
           </label>
         </div>
         <div v-for="row in visibleNutrients" :key="row.key" class="nutrient-row">
-          <span>{{ row.key }}</span>
+          <span>{{ row.name }}</span>
           <span>{{ scale(row.value) }} {{ row.unit }}</span>
         </div>
         <button class="text-btn" type="button" @click="showAll = !showAll">

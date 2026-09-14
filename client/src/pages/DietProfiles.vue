@@ -1,25 +1,33 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
 import { Plus, Tag } from "@lucide/vue";
-import { TRACKED_NUTRIENTS } from "../domain/nutrients";
 import {
   addDietProfileNutrient,
   createDietProfile,
   listDietProfiles,
+  listNutrients,
   patchDietProfile,
   removeDietProfileNutrient,
   type DietProfile,
+  type Nutrient,
 } from "../app-api";
 
+const catalog = ref<Nutrient[]>([]);
 const profiles = ref<DietProfile[]>([]);
 const name = ref("");
-const selected = ref<string[]>(["Fiber", "Protein"]);
+const selected = ref<string[]>(["fiber", "proteins"]);
 const error = ref("");
 const editingId = ref<string | null>(null);
 const editName = ref("");
 
+function nutrientName(id: string) {
+  return catalog.value.find((nutrient) => nutrient.id === id)?.name ?? id;
+}
+
 async function load() {
-  profiles.value = (await listDietProfiles()).dietProfiles;
+  const [nutrients, diet] = await Promise.all([listNutrients(), listDietProfiles()]);
+  catalog.value = nutrients.nutrients;
+  profiles.value = diet.dietProfiles;
 }
 
 onMounted(async () => {
@@ -71,7 +79,7 @@ async function dropNutrient(profile: DietProfile, nutrient: string) {
 }
 
 function untrackedNutrients(profile: DietProfile) {
-  return TRACKED_NUTRIENTS.filter((nutrient) => !profile.nutrients.includes(nutrient));
+  return catalog.value.filter((nutrient) => !profile.nutrients.includes(nutrient.id));
 }
 </script>
 
@@ -112,16 +120,16 @@ function untrackedNutrients(profile: DietProfile) {
           :title="'Remove'"
           @click="dropNutrient(profile, nutrient)"
         >
-          <Tag :size="12" /> {{ nutrient }}
+          <Tag :size="12" /> {{ nutrientName(nutrient) }}
         </button>
         <button
           v-for="nutrient in untrackedNutrients(profile)"
-          :key="`add-${nutrient}`"
+          :key="`add-${nutrient.id}`"
           class="chip dashed"
           type="button"
-          @click="addNutrient(profile, nutrient)"
+          @click="addNutrient(profile, nutrient.id)"
         >
-          <Plus :size="12" /> {{ nutrient }}
+          <Plus :size="12" /> {{ nutrient.name }}
         </button>
       </div>
     </div>
@@ -132,14 +140,14 @@ function untrackedNutrients(profile: DietProfile) {
       <p class="label">Tracked nutrients</p>
       <div class="chips">
         <button
-          v-for="nutrient in TRACKED_NUTRIENTS"
-          :key="nutrient"
+          v-for="nutrient in catalog"
+          :key="nutrient.id"
           class="chip"
-          :class="{ on: selected.includes(nutrient) }"
+          :class="{ on: selected.includes(nutrient.id) }"
           type="button"
-          @click="toggleSelect(nutrient)"
+          @click="toggleSelect(nutrient.id)"
         >
-          {{ nutrient }}
+          {{ nutrient.name }}
         </button>
       </div>
       <button type="submit"><Plus :size="16" /> Add Diet profile</button>
