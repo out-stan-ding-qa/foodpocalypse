@@ -416,6 +416,53 @@ appRouter.post("/stores", async (req, res) => {
   res.status(201).json({ store });
 });
 
+appRouter.patch("/stores/:id", async (req, res) => {
+  const user = await requireUser(req, res);
+  if (!user) {
+    return;
+  }
+  const db = getDb();
+  const store = db
+    .select()
+    .from(stores)
+    .where(and(eq(stores.id, String(req.params.id)), eq(stores.userId, user.sub)))
+    .get();
+  if (!store) {
+    res.status(404).json({ error: "Store not found" });
+    return;
+  }
+  const name = asString(req.body?.name);
+  const address = asString(req.body?.address);
+  if (!name || !isValidStoreLocation(address)) {
+    res.status(400).json({ error: "Store name and location are required" });
+    return;
+  }
+  db.update(stores)
+    .set({ name, address })
+    .where(eq(stores.id, store.id))
+    .run();
+  res.json({ store: { ...store, name, address } });
+});
+
+appRouter.delete("/stores/:id", async (req, res) => {
+  const user = await requireUser(req, res);
+  if (!user) {
+    return;
+  }
+  const db = getDb();
+  const store = db
+    .select()
+    .from(stores)
+    .where(and(eq(stores.id, String(req.params.id)), eq(stores.userId, user.sub)))
+    .get();
+  if (!store) {
+    res.status(404).json({ error: "Store not found" });
+    return;
+  }
+  db.delete(stores).where(eq(stores.id, store.id)).run();
+  res.status(204).end();
+});
+
 appRouter.get("/diet-profiles", async (req, res) => {
   const user = await requireUser(req, res);
   if (!user) {

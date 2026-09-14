@@ -19,6 +19,8 @@ const EXPECTED_ROUTES = [
   "POST /products/:id/ratings",
   "GET /stores",
   "POST /stores",
+  "PATCH /stores/:id",
+  "DELETE /stores/:id",
   "GET /diet-profiles",
   "POST /diet-profiles",
   "PATCH /diet-profiles/:id",

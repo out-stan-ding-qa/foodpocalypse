@@ -298,6 +298,29 @@ button:disabled {
   cursor: default;
 }
 
+.row-main {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+  flex: 1;
+  text-align: left;
+}
+
+.row-main > div {
+  min-width: 0;
+}
+
+.row-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+}
+
+.text-btn.danger {
+  color: #dc2626;
+}
+
 pre {
   margin: 0;
   font-size: 0.75rem;
