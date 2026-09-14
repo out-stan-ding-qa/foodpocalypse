@@ -90,6 +90,29 @@ function activeListFor(userId: string) {
   return created;
 }
 
+function shoppingListPayload(
+  list: { id: string; createdAt: number; archivedAt: number | null; status: string },
+  items: Array<{
+    id: string;
+    name: string;
+    productId: string | null;
+    checked: number | boolean;
+  }>,
+) {
+  return {
+    id: list.id,
+    createdAt: list.createdAt,
+    archivedAt: list.archivedAt,
+    status: list.status,
+    items: items.map((item) => ({
+      id: item.id,
+      name: item.name,
+      productId: item.productId,
+      checked: Boolean(item.checked),
+    })),
+  };
+}
+
 appRouter.post("/products/upc-lookup", async (req, res) => {
   if (!(await requireUser(req, res))) {
     return;
@@ -611,9 +634,10 @@ appRouter.get("/shopping", async (req, res) => {
     .where(eq(shoppingListItems.listId, list.id))
     .all()
     .sort((a, b) => a.createdAt - b.createdAt);
+  const payload = shoppingListPayload(list, items);
   res.json({
-    list,
-    items: items.map((item) => ({ ...item, checked: Boolean(item.checked) })),
+    list: payload,
+    items: payload.items,
   });
 });
 
@@ -689,7 +713,7 @@ appRouter.post("/shopping/archive", async (req, res) => {
     .where(eq(shoppingLists.id, list.id))
     .run();
   const next = activeListFor(user.sub);
-  res.json({ list: next });
+  res.json({ list: shoppingListPayload(next, []) });
 });
 
 appRouter.get("/shopping/history", async (req, res) => {
@@ -717,11 +741,11 @@ appRouter.get("/shopping/history", async (req, res) => {
     .where(eq(shoppingLists.userId, user.sub))
     .all();
   res.json({
-    lists: lists.map((list) => ({
-      ...list,
-      items: items
-        .filter((item) => item.listId === list.id)
-        .map((item) => ({ ...item, checked: Boolean(item.checked) })),
-    })),
+    lists: lists.map((list) =>
+      shoppingListPayload(
+        list,
+        items.filter((item) => item.listId === list.id),
+      ),
+    ),
   });
 });

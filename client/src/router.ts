@@ -10,7 +10,7 @@ import Stores from "./pages/Stores.vue";
 import ShoppingList from "./pages/ShoppingList.vue";
 import ShoppingHistory from "./pages/ShoppingHistory.vue";
 import DietProfiles from "./pages/DietProfiles.vue";
-import { getMe } from "./api";
+import { getAccount } from "./api";
 
 const router = createRouter({
   history: createWebHistory(),
@@ -42,7 +42,6 @@ const router = createRouter({
       component: DietProfiles,
       meta: { requiresAuth: true, title: "Diet Profiles" },
     },
-    { path: "/diets", redirect: "/diet-profiles" },
   ],
 });
 
@@ -51,7 +50,7 @@ router.beforeEach(async (to) => {
     return true;
   }
   try {
-    await getMe();
+    await getAccount();
     return true;
   } catch {
     return { path: "/login" };

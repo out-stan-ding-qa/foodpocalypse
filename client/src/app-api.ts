@@ -40,10 +40,11 @@ export type ShoppingItem = {
   checked: boolean;
 };
 
-export type HistoricList = {
+export type ShoppingList = {
   id: string;
   createdAt: number;
   archivedAt: number | null;
+  status: "active" | "archived";
   items: ShoppingItem[];
 };
 
@@ -176,7 +177,7 @@ export function removeDietProfileNutrient(id: string, nutrient: string) {
 }
 
 export function getShopping() {
-  return api<{ items: ShoppingItem[] }>("/api/shopping");
+  return api<{ list: ShoppingList; items: ShoppingItem[] }>("/api/shopping");
 }
 
 export function addShoppingItem(name: string, productId?: string) {
@@ -194,11 +195,11 @@ export function toggleShoppingItem(id: string, checked: boolean) {
 }
 
 export function archiveShoppingList() {
-  return api<{ list: { id: string } }>("/api/shopping/archive", {
+  return api<{ list: ShoppingList }>("/api/shopping/archive", {
     method: "POST",
   });
 }
 
 export function shoppingHistory() {
-  return api<{ lists: HistoricList[] }>("/api/shopping/history");
+  return api<{ lists: ShoppingList[] }>("/api/shopping/history");
 }

@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
 import { HeartPulse, List, Search, Store, User } from "@lucide/vue";
-import { getMe, type Me } from "../api";
+import { getAccount, type Account } from "../api";
 import { getShopping } from "../app-api";
 
-const me = ref<Me | null>(null);
+const account = ref<Account | null>(null);
 const remaining = ref(0);
 
 const greeting = () => {
-  const email = me.value?.email;
+  const email = account.value?.email;
   if (!email) {
     return "there";
   }
@@ -16,9 +16,9 @@ const greeting = () => {
 };
 
 onMounted(async () => {
-  me.value = await getMe();
+  account.value = await getAccount();
   const shopping = await getShopping();
-  remaining.value = shopping.items.filter((item) => !item.checked).length;
+  remaining.value = shopping.list.items.filter((item) => !item.checked).length;
 });
 </script>
 
