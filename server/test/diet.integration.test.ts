@@ -24,6 +24,35 @@ describe("diet HTTP", () => {
     await registerUser(server.request);
   });
 
+  async function yogurtOnLowSodium() {
+    const productRes = await server.request("/api/products", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Yogurt" }),
+    });
+    const { product } = (await productRes.json()) as { product: { id: string } };
+    const profileRes = await server.request("/api/diet-profiles", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Low sodium", nutrients: ["Protein"] }),
+    });
+    const { dietProfile } = (await profileRes.json()) as { dietProfile: { id: string } };
+    return { product, dietProfile };
+  }
+
+  async function postRating(productId: string, body: unknown) {
+    return server.request(`/api/products/${productId}/ratings`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  }
+
+  async function ratingsOn(productId: string) {
+    const detail = await server.request(`/api/products/${productId}`);
+    return ((await detail.json()) as { ratings: unknown[] }).ratings;
+  }
+
   it("stores a User Rating separately from Recommendation and shows the Rating", async () => {
     const productRes = await server.request("/api/products", {
       method: "POST",
@@ -59,6 +88,90 @@ describe("diet HTTP", () => {
     };
     assert.equal(body.ratings.length, 1);
     assert.equal(body.ratings[0]?.mark, "red");
+  });
+
+  it("rejects a missing Rating without writing a mark", async () => {
+    const { product, dietProfile } = await yogurtOnLowSodium();
+
+    const rated = await postRating(product.id, { dietProfileId: dietProfile.id });
+    assert.equal(rated.status, 400);
+    assert.deepEqual(await rated.json(), { error: "Rating is required" });
+    assert.equal((await ratingsOn(product.id)).length, 0);
+  });
+
+  it("rejects an empty Rating without writing a mark", async () => {
+    const { product, dietProfile } = await yogurtOnLowSodium();
+
+    const rated = await postRating(product.id, { dietProfileId: dietProfile.id, rating: "" });
+    assert.equal(rated.status, 400);
+    assert.deepEqual(await rated.json(), { error: "Rating is required" });
+    assert.equal((await ratingsOn(product.id)).length, 0);
+  });
+
+  it("rejects a null Rating without writing a mark", async () => {
+    const { product, dietProfile } = await yogurtOnLowSodium();
+
+    const rated = await postRating(product.id, { dietProfileId: dietProfile.id, rating: null });
+    assert.equal(rated.status, 400);
+    assert.deepEqual(await rated.json(), { error: "Rating is required" });
+    assert.equal((await ratingsOn(product.id)).length, 0);
+  });
+
+  it("rejects a Rating that is not a traffic light without writing a mark", async () => {
+    const { product, dietProfile } = await yogurtOnLowSodium();
+
+    const rated = await postRating(product.id, { dietProfileId: dietProfile.id, rating: "blue" });
+    assert.equal(rated.status, 400);
+    assert.deepEqual(await rated.json(), { error: "Invalid rating" });
+    assert.equal((await ratingsOn(product.id)).length, 0);
+  });
+
+  it("clears a Rating so the Product has no mark", async () => {
+    const { product, dietProfile } = await yogurtOnLowSodium();
+    const created = await postRating(product.id, { dietProfileId: dietProfile.id, rating: "red" });
+    assert.equal(created.status, 201);
+
+    const cleared = await postRating(product.id, { dietProfileId: dietProfile.id, rating: null });
+    assert.equal(cleared.status, 200);
+    assert.deepEqual(await cleared.json(), {
+      rating: null,
+      recommendation: null,
+      mark: null,
+    });
+    assert.equal((await ratingsOn(product.id)).length, 0);
+  });
+
+  it("clears a Rating and shows the Recommendation", async () => {
+    const { product, dietProfile } = await yogurtOnLowSodium();
+    getDb()
+      .insert(productDietRatings)
+      .values({
+        id: "rated-with-rec",
+        productId: product.id,
+        dietProfileId: dietProfile.id,
+        rating: "red",
+        recommendation: "green",
+        updatedAt: Date.now(),
+      })
+      .run();
+
+    const cleared = await postRating(product.id, { dietProfileId: dietProfile.id, rating: null });
+    assert.equal(cleared.status, 200);
+    assert.deepEqual(await cleared.json(), {
+      rating: null,
+      recommendation: "green",
+      mark: "green",
+    });
+
+    const ratings = (await ratingsOn(product.id)) as Array<{
+      rating: null;
+      recommendation: string;
+      mark: string;
+    }>;
+    assert.equal(ratings.length, 1);
+    assert.equal(ratings[0]?.rating, null);
+    assert.equal(ratings[0]?.recommendation, "green");
+    assert.equal(ratings[0]?.mark, "green");
   });
 
   it("shows a Recommendation when there is no Rating", async () => {

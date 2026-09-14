@@ -46,6 +46,43 @@ describe("shopping HTTP", () => {
     assert.deepEqual(body.items, []);
   });
 
+  it("returns current and archived Shopping lists with the same fields", async () => {
+    type ShoppingListBody = {
+      id: string;
+      createdAt: number;
+      archivedAt: number | null;
+      status: string;
+      items: { name: string }[];
+      userId?: string;
+    };
+
+    const emptyRes = await server.request("/api/shopping");
+    const empty = (await emptyRes.json()) as { list: ShoppingListBody; items: unknown[] };
+    assert.equal(empty.list.status, "active");
+    assert.equal(empty.list.archivedAt, null);
+    assert.deepEqual(empty.list.items, []);
+    assert.equal(empty.list.userId, undefined);
+
+    await addItem("Bananas");
+    const archivedRes = await post("/api/shopping/archive", {});
+    const archived = (await archivedRes.json()) as { list: ShoppingListBody };
+    assert.equal(archived.list.status, "active");
+    assert.equal(archived.list.archivedAt, null);
+    assert.deepEqual(archived.list.items, []);
+    assert.equal(archived.list.userId, undefined);
+
+    const historyRes = await server.request("/api/shopping/history");
+    const history = (await historyRes.json()) as { lists: ShoppingListBody[] };
+    assert.equal(history.lists.length, 1);
+    assert.equal(history.lists[0]?.status, "archived");
+    assert.equal(typeof history.lists[0]?.archivedAt, "number");
+    assert.deepEqual(
+      history.lists[0]?.items.map((item) => item.name),
+      ["Bananas"],
+    );
+    assert.equal(history.lists[0]?.userId, undefined);
+  });
+
   it("returns Shopping items oldest first and unchecked", async () => {
     await addItem("Bananas");
     await addItem("Oat milk");

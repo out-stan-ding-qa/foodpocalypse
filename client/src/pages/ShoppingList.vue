@@ -9,9 +9,10 @@ import {
   toggleShoppingItem,
   type Product,
   type ShoppingItem,
+  type ShoppingList,
 } from "../app-api";
 
-const items = ref<ShoppingItem[]>([]);
+const list = ref<ShoppingList | null>(null);
 const products = ref<Product[]>([]);
 const newItem = ref("");
 const showTypeahead = ref(false);
@@ -24,7 +25,7 @@ const matches = () =>
 
 async function load() {
   const [shopping, catalog] = await Promise.all([getShopping(), listProducts()]);
-  items.value = shopping.items;
+  list.value = shopping.list;
   products.value = catalog.products;
 }
 
@@ -96,7 +97,7 @@ async function archive() {
     <p v-if="error" class="error">{{ error }}</p>
     <div class="card list">
       <button
-        v-for="item in items"
+        v-for="item in list?.items ?? []"
         :key="item.id"
         class="check-row"
         type="button"
@@ -105,7 +106,7 @@ async function archive() {
         <span class="check" :class="{ on: item.checked }"></span>
         <span :class="{ done: item.checked }">{{ item.name }}</span>
       </button>
-      <p v-if="!items.length" class="muted center">List is empty</p>
+      <p v-if="!list?.items.length" class="muted center">List is empty</p>
     </div>
     <button class="secondary" type="button" @click="archive">Save to history & start new list</button>
     <RouterLink class="dashed-btn" to="/shopping/history">

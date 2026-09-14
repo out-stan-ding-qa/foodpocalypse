@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
-import { shoppingHistory, type HistoricList } from "../app-api";
+import { shoppingHistory, type ShoppingList } from "../app-api";
 
-const lists = ref<HistoricList[]>([]);
+const lists = ref<ShoppingList[]>([]);
 const error = ref("");
 
 onMounted(async () => {
@@ -13,7 +13,7 @@ onMounted(async () => {
   }
 });
 
-function when(list: HistoricList) {
+function when(list: ShoppingList) {
   const stamp = list.archivedAt || list.createdAt;
   return new Date(stamp).toLocaleString();
 }

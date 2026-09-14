@@ -51,7 +51,7 @@ async function saveUpc() {
 
 <template>
   <div class="stack">
-    <p class="muted">Look up a packaged food by UPC.</p>
+    <p class="muted">Look up a packaged Product by UPC.</p>
     <form class="card form" @submit.prevent="onUpcLookup">
       <input v-model="upc" required placeholder="Enter UPC code" />
       <button type="submit" :disabled="busy">Lookup</button>

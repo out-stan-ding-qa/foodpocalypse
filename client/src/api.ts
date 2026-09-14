@@ -1,4 +1,4 @@
-export type Me = { id: string; email?: string };
+export type Account = { id: string; email?: string };
 
 async function parseError(res: Response): Promise<string> {
   try {
@@ -46,8 +46,8 @@ export async function api<T>(
   return (await res.json()) as T;
 }
 
-export function getMe(): Promise<Me> {
-  return api<Me>("/api/auth/me", { method: "GET" });
+export function getAccount(): Promise<Account> {
+  return api<Account>("/api/auth/me", { method: "GET" });
 }
 
 export function register(email: string, password: string) {

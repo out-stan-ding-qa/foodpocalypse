@@ -34,20 +34,20 @@ const ratings = ref<
 const profiles = ref<DietProfile[]>([]);
 const error = ref("");
 const listingUrl = ref("");
-const foodWeight = ref(100);
+const amountGrams = ref(100);
 const showAll = ref(false);
 
-const nextColor: Record<TrafficLight, TrafficLight> = {
+const nextRating: Record<TrafficLight, TrafficLight | null> = {
   green: "yellow",
   yellow: "red",
-  red: "green",
+  red: null,
 };
 
 function scale(value: unknown): string {
   if (typeof value !== "number" || !Number.isFinite(value)) {
     return value == null ? "N/A" : String(value);
   }
-  return ((value * foodWeight.value) / 100).toFixed(1);
+  return ((value * amountGrams.value) / 100).toFixed(1);
 }
 
 const visibleNutrients = computed(() => {
@@ -96,12 +96,13 @@ onMounted(async () => {
   }
 });
 
-async function cycle(dietProfileId: string, current: TrafficLight) {
-  await setProductRating(String(route.params.id), dietProfileId, nextColor[current]);
+async function cycle(dietProfileId: string, currentRating: TrafficLight | null) {
+  const next = currentRating ? nextRating[currentRating] : "yellow";
+  await setProductRating(String(route.params.id), dietProfileId, next);
   await load();
 }
 
-async function addBubble(dietProfileId: string) {
+async function addDietProfileRating(dietProfileId: string) {
   await setProductRating(String(route.params.id), dietProfileId, "yellow");
   await load();
 }
@@ -134,21 +135,20 @@ async function saveListing() {
           class="bubble"
           :class="rating.mark"
           type="button"
-          :title="'Tap to change color'"
-          :disabled="!rating.mark"
-          @click="rating.mark && cycle(rating.dietProfileId, rating.mark)"
+          :title="'Tap to change Rating'"
+          @click="cycle(rating.dietProfileId, rating.rating)"
         >
           {{ rating.dietProfile?.name || "Diet profile" }}
         </button>
       </div>
       <div v-if="unusedProfiles.length" class="add-bubbles">
-        <span class="muted">Add Diet profile bubble:</span>
+        <span class="muted">Add Diet profile Rating:</span>
         <button
           v-for="profile in unusedProfiles"
           :key="profile.id"
           class="chip"
           type="button"
-          @click="addBubble(profile.id)"
+          @click="addDietProfileRating(profile.id)"
         >
           + {{ profile.name }}
         </button>
@@ -159,7 +159,7 @@ async function saveListing() {
           <span>Nutrition (per amount)</span>
           <label>
             Amount (g)
-            <input v-model.number="foodWeight" type="number" min="0" class="weight" />
+            <input v-model.number="amountGrams" type="number" min="0" class="weight" />
           </label>
         </div>
         <div v-for="row in visibleNutrients" :key="row.key" class="nutrient-row">
