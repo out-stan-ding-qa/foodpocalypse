@@ -136,6 +136,17 @@ export function createStore(name: string, address: string) {
   });
 }
 
+export function updateStore(id: string, name: string, address: string) {
+  return api<{ store: Store }>(`/api/stores/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ name, address }),
+  });
+}
+
+export function deleteStore(id: string) {
+  return api<void>(`/api/stores/${id}`, { method: "DELETE" });
+}
+
 export function listDiets() {
   return api<{ diets: DietProfile[] }>("/api/diets");
 }

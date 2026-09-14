@@ -129,6 +129,55 @@ describe("catalog HTTP", () => {
     assert.equal(res.status, 400);
   });
 
+  it("updates a Store name and location for this User", async () => {
+    const created = await server.request("/api/stores", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Kroger", address: "123 Main St" }),
+    });
+    const { store } = (await created.json()) as { store: { id: string } };
+    const patched = await server.request(`/api/stores/${store.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Costco", address: "https://costco.com" }),
+    });
+    assert.equal(patched.status, 200);
+    const listed = await server.request("/api/stores");
+    const body = (await listed.json()) as { stores: Array<{ name: string; address: string }> };
+    assert.equal(body.stores.length, 1);
+    assert.equal(body.stores[0].name, "Costco");
+    assert.equal(body.stores[0].address, "https://costco.com");
+  });
+
+  it("removes a Store for this User", async () => {
+    const created = await server.request("/api/stores", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Kroger", address: "123 Main St" }),
+    });
+    const { store } = (await created.json()) as { store: { id: string } };
+    const deleted = await server.request(`/api/stores/${store.id}`, { method: "DELETE" });
+    assert.equal(deleted.status, 204);
+    const listed = await server.request("/api/stores");
+    const body = (await listed.json()) as { stores: Array<{ id: string }> };
+    assert.equal(body.stores.length, 0);
+  });
+
+  it("rejects updating a Store to a non-http URL location", async () => {
+    const created = await server.request("/api/stores", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Kroger", address: "123 Main St" }),
+    });
+    const { store } = (await created.json()) as { store: { id: string } };
+    const patched = await server.request(`/api/stores/${store.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Kroger", address: "javascript:alert(1)" }),
+    });
+    assert.equal(patched.status, 400);
+  });
+
   it("looks up a Product by UPC for a signed-in User", async () => {
     stubOpenFoodFacts(async () =>
       new Response(
