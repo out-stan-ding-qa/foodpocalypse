@@ -1,0 +1,19 @@
+name: Record production deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  production:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+    environment:
+      name: production
+      url: https://foodpocalypse.onrender.com/login
+    steps:
+      - name: Record Render auto-deploy
+        run: echo "Render auto-deploys this commit from main"
