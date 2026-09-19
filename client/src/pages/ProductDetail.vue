@@ -115,6 +115,18 @@ async function saveListing() {
   await updateProduct(String(route.params.id), { listingUrl: listingUrl.value || null });
   await load();
 }
+
+function ratingControlName(profileName: string, mark: TrafficLight | null): string {
+  const name = profileName || "Diet profile";
+  if (mark === "green" || mark === "yellow" || mark === "red") {
+    return `${name}, ${mark} Rating`;
+  }
+  return `${name}, no Rating`;
+}
+
+function addRatingControlName(profileName: string): string {
+  return `Add Rating for ${profileName}`;
+}
 </script>
 
 <template>
@@ -134,7 +146,8 @@ async function saveListing() {
           class="bubble"
           :class="rating.mark"
           type="button"
-          :title="'Tap to change Rating'"
+          :aria-label="ratingControlName(rating.dietProfile?.name || 'Diet profile', rating.mark)"
+          :title="ratingControlName(rating.dietProfile?.name || 'Diet profile', rating.mark)"
           @click="cycle(rating.dietProfileId, rating.rating)"
         >
           {{ rating.dietProfile?.name || "Diet profile" }}
@@ -147,6 +160,8 @@ async function saveListing() {
           :key="profile.id"
           class="chip"
           type="button"
+          :aria-label="addRatingControlName(profile.name)"
+          :title="addRatingControlName(profile.name)"
           @click="addDietProfileRating(profile.id)"
         >
           + {{ profile.name }}
