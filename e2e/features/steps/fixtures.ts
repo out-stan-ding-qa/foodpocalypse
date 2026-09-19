@@ -6,6 +6,8 @@ import { ProductDetailPage } from "../../support/pages/ProductDetailPage";
 export type SeededCatalog = {
   product?: { id: string; name: string };
   dietProfile?: { id: string; name: string };
+  /** Unique name used by the Diet profile create scenario. */
+  createdDietProfileName?: string;
 };
 
 type Fixtures = {
