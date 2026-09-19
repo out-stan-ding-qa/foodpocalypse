@@ -14,3 +14,4 @@ Feature: Product Rating
     Then I see a red Rating bubble for the Diet profile
     When I tap the Rating bubble
     Then I see no Rating bubble for the Diet profile
+    And I see the Add Rating chip for the Diet profile

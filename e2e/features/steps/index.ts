@@ -23,17 +23,21 @@ Given("I am on the Diet profiles page", async ({ dietProfilesPage }) => {
 
 When(
   "I create a Diet profile named {string}",
-  async ({ dietProfilesPage }, name: string) => {
-    await dietProfilesPage.create(name);
+  async ({ dietProfilesPage, seeded }, name: string) => {
+    const uniqueName = `${name} ${Date.now()}`;
+    seeded.createdDietProfileName = uniqueName;
+    await dietProfilesPage.create(uniqueName);
   },
 );
 
-Then(
-  "I see the Diet profile named {string}",
-  async ({ dietProfilesPage }, name: string) => {
-    await expect(dietProfilesPage.profileHeading(name)).toBeVisible();
-  },
-);
+Then("I see that Diet profile", async ({ dietProfilesPage, seeded }) => {
+  if (!seeded.createdDietProfileName) {
+    throw new Error("Diet profile was not created");
+  }
+  await expect(
+    dietProfilesPage.profileHeading(seeded.createdDietProfileName),
+  ).toBeVisible();
+});
 
 Given(
   "an API-seeded Product with an active Diet profile and a green Rating",
@@ -63,9 +67,9 @@ Then(
     if (!seeded.dietProfile) {
       throw new Error("Diet profile was not seeded");
     }
-    await expect(productDetailPage.ratingBubble(seeded.dietProfile.name)).toHaveClass(
-      /green/,
-    );
+    await expect(
+      productDetailPage.ratingBubble(seeded.dietProfile.name, "green"),
+    ).toBeVisible();
   },
 );
 
@@ -75,9 +79,9 @@ Then(
     if (!seeded.dietProfile) {
       throw new Error("Diet profile was not seeded");
     }
-    await expect(productDetailPage.ratingBubble(seeded.dietProfile.name)).toHaveClass(
-      /yellow/,
-    );
+    await expect(
+      productDetailPage.ratingBubble(seeded.dietProfile.name, "yellow"),
+    ).toBeVisible();
   },
 );
 
@@ -87,9 +91,9 @@ Then(
     if (!seeded.dietProfile) {
       throw new Error("Diet profile was not seeded");
     }
-    await expect(productDetailPage.ratingBubble(seeded.dietProfile.name)).toHaveClass(
-      /red/,
-    );
+    await expect(
+      productDetailPage.ratingBubble(seeded.dietProfile.name, "red"),
+    ).toBeVisible();
   },
 );
 
@@ -100,6 +104,16 @@ Then(
       throw new Error("Diet profile was not seeded");
     }
     await expect(productDetailPage.ratingBubble(seeded.dietProfile.name)).toHaveCount(0);
+  },
+);
+
+Then(
+  "I see the Add Rating chip for the Diet profile",
+  async ({ productDetailPage, seeded }) => {
+    if (!seeded.dietProfile) {
+      throw new Error("Diet profile was not seeded");
+    }
+    await expect(productDetailPage.addRatingChip(seeded.dietProfile.name)).toBeVisible();
   },
 );
 
