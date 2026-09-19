@@ -1,0 +1,21 @@
+{
+  "name": "Foodpocalypse",
+  "user": "ubuntu",
+  "install": "./scripts/cloud-agent-install.sh",
+  "terminals": [
+    {
+      "name": "dev",
+      "command": "npm run dev"
+    }
+  ],
+  "ports": [
+    {
+      "name": "client",
+      "port": 5173
+    },
+    {
+      "name": "api",
+      "port": 3001
+    }
+  ]
+}
