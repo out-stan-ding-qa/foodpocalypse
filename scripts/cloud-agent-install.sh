@@ -5,7 +5,9 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-npm install
+# Reproducible install from the committed lockfile. `npm ci` does not rewrite
+# package-lock.json, so the environment stays in sync with the repo.
+npm ci
 
 # The local API reads server/.env (gitignored). Create it once with strong
 # random secrets so `npm run dev` can sign in with the seeded default User.
