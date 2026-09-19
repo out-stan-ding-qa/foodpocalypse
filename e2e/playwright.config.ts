@@ -1,4 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
+import { defineBddProject } from "playwright-bdd";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -28,8 +29,9 @@ const e2eEnv: Record<string, string> = {
 
 const baseURL = isCI ? "http://localhost:3001" : "http://localhost:5173";
 
+const chrome = devices["Desktop Chrome"];
+
 export default defineConfig({
-  testDir: path.join(e2eDir, "tests"),
   fullyParallel: false,
   forbidOnly: isCI,
   retries: isCI ? 1 : 0,
@@ -42,23 +44,34 @@ export default defineConfig({
     screenshot: "only-on-failure",
   },
   projects: [
-    { name: "setup", testMatch: /auth\.setup\.ts/ },
     {
-      name: "chromium",
+      name: "setup",
+      testDir: path.join(e2eDir, "tests"),
+      testMatch: /auth\.setup\.ts/,
+    },
+    {
+      ...defineBddProject({
+        name: "chromium",
+        features: "features/*.feature",
+        steps: "features/steps/*.ts",
+        tags: "@authenticated",
+      }),
       dependencies: ["setup"],
-      testMatch: /diet-profile-create\.spec\.ts|product-rating\.spec\.ts/,
       use: {
-        ...devices["Desktop Chrome"],
-        channel: undefined,
+        ...chrome,
         storageState: AUTH_FILE,
       },
     },
     {
-      name: "chromium-anon",
+      ...defineBddProject({
+        name: "chromium-anon",
+        features: "features/*.feature",
+        steps: "features/steps/*.ts",
+        tags: "@anon",
+      }),
       dependencies: ["setup"],
-      testMatch: /sign-in\.spec\.ts/,
       use: {
-        ...devices["Desktop Chrome"],
+        ...chrome,
         storageState: { cookies: [], origins: [] },
       },
     },
