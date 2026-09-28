@@ -1,7 +1,34 @@
 import { expect } from "@playwright/test";
 import { createDietProfile, createProduct, setProductRating } from "../../support/api";
 import { E2E_USER } from "../../support/auth";
-import { Given, When, Then } from "./fixtures";
+import {
+  type BubbleColor,
+  type ProductDetailPage,
+} from "../../support/pages/ProductDetailPage";
+import { Given, When, Then, type SeededCatalog } from "./fixtures";
+
+const BUBBLE_COLORS = new Set<BubbleColor>(["green", "yellow", "red"]);
+
+function asBubbleColor(color: string): BubbleColor {
+  if (!BUBBLE_COLORS.has(color as BubbleColor)) {
+    throw new Error(`Expected green, yellow, or red Rating, got "${color}"`);
+  }
+  return color as BubbleColor;
+}
+
+async function openSeededProductDetail({
+  productDetailPage,
+  seeded,
+}: {
+  productDetailPage: ProductDetailPage;
+  seeded: SeededCatalog;
+}) {
+  if (!seeded.product) {
+    throw new Error("Product was not seeded");
+  }
+  await productDetailPage.goto(seeded.product.id);
+  await expect(productDetailPage.productHeading(seeded.product.name)).toBeVisible();
+}
 
 Given("I am on the sign-in page", async ({ loginPage }) => {
   await loginPage.goto();
@@ -53,59 +80,27 @@ Given(
   },
 );
 
-When("I open that Product detail", async ({ productDetailPage, seeded }) => {
-  if (!seeded.product) {
-    throw new Error("Product was not seeded");
+Given("I am on that Product detail", openSeededProductDetail);
+When("I open that Product detail", openSeededProductDetail);
+
+Then(
+  "the Rating bubble is {word}",
+  async ({ productDetailPage, seeded }, color: string) => {
+    if (!seeded.dietProfile) {
+      throw new Error("Diet profile was not seeded");
+    }
+    await expect(
+      productDetailPage.ratingBubble(seeded.dietProfile.name, asBubbleColor(color)),
+    ).toBeVisible();
+  },
+);
+
+Then("there is no Rating bubble", async ({ productDetailPage, seeded }) => {
+  if (!seeded.dietProfile) {
+    throw new Error("Diet profile was not seeded");
   }
-  await productDetailPage.goto(seeded.product.id);
-  await expect(productDetailPage.productHeading(seeded.product.name)).toBeVisible();
+  await expect(productDetailPage.ratingBubble(seeded.dietProfile.name)).toHaveCount(0);
 });
-
-Then(
-  "I see a green Rating bubble for the Diet profile",
-  async ({ productDetailPage, seeded }) => {
-    if (!seeded.dietProfile) {
-      throw new Error("Diet profile was not seeded");
-    }
-    await expect(
-      productDetailPage.ratingBubble(seeded.dietProfile.name, "green"),
-    ).toBeVisible();
-  },
-);
-
-Then(
-  "I see a yellow Rating bubble for the Diet profile",
-  async ({ productDetailPage, seeded }) => {
-    if (!seeded.dietProfile) {
-      throw new Error("Diet profile was not seeded");
-    }
-    await expect(
-      productDetailPage.ratingBubble(seeded.dietProfile.name, "yellow"),
-    ).toBeVisible();
-  },
-);
-
-Then(
-  "I see a red Rating bubble for the Diet profile",
-  async ({ productDetailPage, seeded }) => {
-    if (!seeded.dietProfile) {
-      throw new Error("Diet profile was not seeded");
-    }
-    await expect(
-      productDetailPage.ratingBubble(seeded.dietProfile.name, "red"),
-    ).toBeVisible();
-  },
-);
-
-Then(
-  "I see no Rating bubble for the Diet profile",
-  async ({ productDetailPage, seeded }) => {
-    if (!seeded.dietProfile) {
-      throw new Error("Diet profile was not seeded");
-    }
-    await expect(productDetailPage.ratingBubble(seeded.dietProfile.name)).toHaveCount(0);
-  },
-);
 
 Then(
   "I see the Add Rating chip for the Diet profile",
