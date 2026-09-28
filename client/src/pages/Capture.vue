@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { ApiError } from "../api";
 import {
@@ -11,6 +11,7 @@ import {
   type Product,
   type UpcResult,
 } from "../app-api";
+import { shouldShowNameConflictWarning } from "../domain/captureNameGuard";
 
 type Mode = "upc" | "name";
 type SaveDraft = {
@@ -48,6 +49,8 @@ const manualNotes = ref("");
 const nameDupes = ref<Array<{ id: string; name: string }>>([]);
 const nutritionWarn = ref("");
 const nameUpcDup = ref<{ id: string; name: string; upc: string } | null>(null);
+/** True after a successful name-mode save until the draft changes. */
+const nameSaveSucceeded = ref(false);
 
 const catalog = ref<Product[]>([]);
 
@@ -59,12 +62,31 @@ const nameUnique = computed(() => {
   return !catalog.value.some((product) => normalizeName(product.name) === key);
 });
 
+const showSelectedNameConflict = computed(() =>
+  shouldShowNameConflictWarning({
+    nameUnique: nameUnique.value,
+    saveSucceeded: nameSaveSucceeded.value,
+  }),
+);
+
 const manualUnique = computed(() => {
   const key = normalizeName(manualName.value);
   if (!key) {
     return false;
   }
   return !catalog.value.some((product) => normalizeName(product.name) === key);
+});
+
+const showManualNameConflict = computed(() =>
+  shouldShowNameConflictWarning({
+    nameUnique: manualUnique.value,
+    saveSucceeded: nameSaveSucceeded.value && !selected.value,
+  }),
+);
+
+watch(editName, () => {
+  // Typing after a successful save returns to conflict-checking mode.
+  nameSaveSucceeded.value = false;
 });
 
 function normalizeName(name: string): string {
@@ -163,6 +185,7 @@ async function saveDraft(draft: SaveDraft, opts: { mode: Mode }) {
     } else {
       nameUpcDup.value = null;
       nameStatus.value = "Saved to your products.";
+      nameSaveSucceeded.value = true;
     }
     await refreshCatalog();
   } catch (err) {
@@ -222,6 +245,7 @@ async function onNameLookup() {
   nameUpcDup.value = null;
   nameDupes.value = [];
   nutritionWarn.value = "";
+  nameSaveSucceeded.value = false;
   busy.value = true;
   try {
     const data = await lookupByName(query.value);
@@ -245,6 +269,7 @@ function pickResult(result: NameLookupResult) {
   nameDupes.value = [];
   nameUpcDup.value = null;
   nameStatus.value = "";
+  nameSaveSucceeded.value = false;
   void refreshCatalog().then(() => {
     const twin = catalog.value.find((product) =>
       nutritionEqual(product.nutrition, result.nutrition),
@@ -261,6 +286,7 @@ async function saveSelected(omitUpc = false) {
   }
   busy.value = true;
   nameStatus.value = "";
+  nameSaveSucceeded.value = false;
   try {
     await saveDraft(
       {
@@ -286,6 +312,7 @@ async function saveManual() {
   busy.value = true;
   nameStatus.value = "";
   nameDupes.value = [];
+  nameSaveSucceeded.value = false;
   try {
     await saveDraft(
       {
@@ -398,16 +425,20 @@ void refreshCatalog();
         </label>
         <p class="muted">{{ selected.brand || "No brand" }}</p>
         <pre>{{ JSON.stringify(selected.nutrition, null, 2) }}</pre>
-        <p v-if="nutritionWarn" class="muted">{{ nutritionWarn }}</p>
-        <p v-if="!nameUnique" class="error">
+        <p v-if="nutritionWarn && !nameSaveSucceeded" class="muted">{{ nutritionWarn }}</p>
+        <p v-if="showSelectedNameConflict" class="error">
           Choose a different name — you already have a Product with this name.
         </p>
-        <ul v-if="nameDupes.length" class="dupe-list">
+        <ul v-if="nameDupes.length && showSelectedNameConflict" class="dupe-list">
           <li v-for="dupe in nameDupes" :key="dupe.id">
             <a href="#" @click.prevent="router.push(`/products/${dupe.id}`)">{{ dupe.name }}</a>
           </li>
         </ul>
-        <button type="button" :disabled="busy || !nameUnique" @click="saveSelected(false)">
+        <button
+          type="button"
+          :disabled="busy || showSelectedNameConflict || nameSaveSucceeded"
+          @click="saveSelected(false)"
+        >
           Save Product
         </button>
         <div v-if="nameUpcDup" class="warn-box">
@@ -421,7 +452,7 @@ void refreshCatalog();
           <button
             type="button"
             class="secondary"
-            :disabled="busy || !nameUnique"
+            :disabled="busy || showSelectedNameConflict"
             @click="saveSelected(true)"
           >
             Save without UPC
@@ -438,10 +469,14 @@ void refreshCatalog();
           <input v-model="manualName" required placeholder="Product name" />
           <input v-model="manualBrand" placeholder="Brand (optional)" />
           <textarea v-model="manualNotes" rows="3" placeholder="Notes (optional)" />
-          <p v-if="manualName && !manualUnique" class="error">
+          <p v-if="manualName && showManualNameConflict" class="error">
             Choose a different name — you already have a Product with this name.
           </p>
-          <button type="button" :disabled="busy || !manualUnique" @click="saveManual">
+          <button
+            type="button"
+            :disabled="busy || showManualNameConflict || (!!manualName && nameSaveSucceeded && !selected)"
+            @click="saveManual"
+          >
             Save Product
           </button>
           <p v-if="nameStatus && !selected" class="muted">{{ nameStatus }}</p>
