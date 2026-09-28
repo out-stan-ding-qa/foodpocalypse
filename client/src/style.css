@@ -187,6 +187,62 @@ button:disabled {
   margin: 0.2rem 0 0;
 }
 
+.segment {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.35rem;
+  padding: 0.3rem;
+  background: #e5e7eb;
+  border-radius: 0.9rem;
+}
+
+.segment-btn {
+  background: transparent;
+  color: #374151;
+  padding: 0.55rem 0.6rem;
+}
+
+.segment-btn.active {
+  background: #fff;
+  color: #111827;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 8%);
+}
+
+.hit {
+  display: grid;
+  gap: 0.15rem;
+  width: 100%;
+  text-align: left;
+  background: #f9fafb;
+  color: inherit;
+  border: 1px solid #e5e7eb;
+  margin-top: 0.45rem;
+}
+
+.hit.active {
+  border-color: #2563eb;
+  background: #eff6ff;
+}
+
+.warn-box {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.65rem;
+  border-radius: 0.75rem;
+  background: #fef2f2;
+}
+
+.dupe-list {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+label {
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+}
+
 .center {
   text-align: center;
 }

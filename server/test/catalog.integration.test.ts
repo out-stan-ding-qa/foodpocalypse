@@ -334,4 +334,157 @@ describe("catalog HTTP", () => {
     assert.equal(called, false);
   });
 
+  it("looks up Products by name for a signed-in User", async () => {
+    stubOpenFoodFacts(async (input) => {
+      const url = String(input);
+      assert.match(url, /search\.openfoodfacts\.org\/search/i);
+      assert.match(url, /oat/i);
+      return new Response(
+        JSON.stringify({
+          hits: [
+            {
+              code: "012345678905",
+              product_name: "Oat Milk Original",
+              brands: ["Oaty"],
+              image_front_url: "https://images.example.com/oat.jpg",
+              ingredients_text: "Oat base",
+              nutriments: { "energy-kcal_100g": 48, proteins_100g: 1.1 },
+            },
+          ],
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      );
+    });
+
+    const res = await server.request("/api/products/name-lookup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query: "oat milk" }),
+    });
+    assert.equal(res.status, 200);
+    const body = (await res.json()) as {
+      results: Array<{
+        name: string;
+        brand: string;
+        upc: string | null;
+        listingUrl: string | null;
+        nutrition: Record<string, number>;
+      }>;
+    };
+    assert.equal(body.results.length, 1);
+    assert.equal(body.results[0]?.name, "Oat Milk Original");
+    assert.equal(body.results[0]?.brand, "Oaty");
+    assert.equal(body.results[0]?.upc, "012345678905");
+    assert.equal(body.results[0]?.listingUrl, null);
+    assert.equal(body.results[0]?.nutrition["energy-kcal"], 48);
+  });
+
+  it("returns an empty list when Open Food Facts has no name matches", async () => {
+    stubOpenFoodFacts(
+      async () =>
+        new Response(JSON.stringify({ hits: [] }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+    );
+
+    const res = await server.request("/api/products/name-lookup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query: "zzzz-no-such-product" }),
+    });
+    assert.equal(res.status, 200);
+    const body = (await res.json()) as { results: unknown[] };
+    assert.deepEqual(body.results, []);
+  });
+
+  it("does not call Open Food Facts when the name query is blank", async () => {
+    let called = false;
+    stubOpenFoodFacts(async () => {
+      called = true;
+      return new Response("should not run", { status: 500 });
+    });
+
+    const res = await server.request("/api/products/name-lookup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query: "   " }),
+    });
+    const body = (await res.json()) as { error?: string };
+    assert.equal(res.status, 400);
+    assert.equal(body.error, "Enter a search query");
+    assert.equal(called, false);
+  });
+
+  it("does not treat an Open Food Facts name-search outage as empty results", async () => {
+    stubOpenFoodFacts(
+      async () =>
+        new Response("<html>service unavailable</html>", {
+          status: 503,
+          headers: { "content-type": "text/html" },
+        }),
+    );
+
+    const res = await server.request("/api/products/name-lookup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query: "yogurt" }),
+    });
+    const body = (await res.json()) as { error?: string };
+    assert.equal(res.status, 502);
+    assert.equal(body.error, "Name lookup is unavailable");
+  });
+
+  it("rejects a second Product with the same name for this User", async () => {
+    const first = await server.request("/api/products", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Plain Yogurt" }),
+    });
+    assert.equal(first.status, 201);
+    const { product } = (await first.json()) as { product: { id: string; name: string } };
+
+    const second = await server.request("/api/products", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "  plain   yogurt " }),
+    });
+    assert.equal(second.status, 400);
+    const body = (await second.json()) as {
+      error: string;
+      existingProducts: Array<{ id: string; name: string }>;
+    };
+    assert.equal(body.error, "A product with this name already exists");
+    assert.equal(body.existingProducts.length, 1);
+    assert.equal(body.existingProducts[0]?.id, product.id);
+    assert.equal(body.existingProducts[0]?.name, product.name);
+  });
+
+  it("includes the existing Product when a UPC is already saved", async () => {
+    const first = await server.request("/api/products", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Yogurt A", upc: "012345678905" }),
+    });
+    assert.equal(first.status, 201);
+    const { product } = (await first.json()) as {
+      product: { id: string; name: string; upc: string };
+    };
+
+    const second = await server.request("/api/products", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Yogurt B", upc: "012345678905" }),
+    });
+    assert.equal(second.status, 400);
+    const body = (await second.json()) as {
+      error: string;
+      existingProduct: { id: string; name: string; upc: string };
+    };
+    assert.equal(body.error, "A product with this UPC already exists");
+    assert.equal(body.existingProduct.id, product.id);
+    assert.equal(body.existingProduct.name, product.name);
+    assert.equal(body.existingProduct.upc, product.upc);
+  });
+
 });

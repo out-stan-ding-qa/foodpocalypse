@@ -16,8 +16,9 @@ import {
 import { isTrafficLight, visibleMark } from "../domain/mark.js";
 import { isNutrientId, NUTRIENTS } from "@foodpocalypse/domain/nutrients";
 import { isValidStoreLocation } from "../domain/storeLocation.js";
+import { normalizeProductName } from "../domain/productName.js";
 import { parseUpc } from "../domain/upc.js";
-import { lookupByUpc } from "../ingestion/openFoodFacts.js";
+import { lookupByName, lookupByUpc } from "../ingestion/openFoodFacts.js";
 
 export const appRouter = Router();
 
@@ -134,6 +135,25 @@ appRouter.post("/products/upc-lookup", async (req, res) => {
   res.json({ result: { ...lookup.result, upc, listingUrl: null } });
 });
 
+appRouter.post("/products/name-lookup", async (req, res) => {
+  if (!(await requireUser(req, res))) {
+    return;
+  }
+  const query = asString(req.body?.query);
+  if (!query) {
+    res.status(400).json({ error: "Enter a search query" });
+    return;
+  }
+  const lookup = await lookupByName(query);
+  if (lookup.status === "unavailable") {
+    res.status(502).json({ error: "Name lookup is unavailable" });
+    return;
+  }
+  res.json({
+    results: lookup.results.map((result) => ({ ...result, listingUrl: null })),
+  });
+});
+
 appRouter.get("/products", async (req, res) => {
   const user = await requireUser(req, res);
   if (!user) {
@@ -200,10 +220,36 @@ appRouter.post("/products", async (req, res) => {
     res.status(400).json({ error: "Enter a valid UPC" });
     return;
   }
+  const db = getDb();
+  const owned = db.select().from(products).where(eq(products.userId, user.sub)).all();
+  const nameKey = normalizeProductName(name);
+  const nameConflicts = owned.filter(
+    (row) => normalizeProductName(row.name) === nameKey,
+  );
+  if (nameConflicts.length > 0) {
+    res.status(400).json({
+      error: "A product with this name already exists",
+      existingProducts: nameConflicts.map((row) => ({ id: row.id, name: row.name })),
+    });
+    return;
+  }
+  if (upc) {
+    const upcConflict = owned.find((row) => row.upc === upc);
+    if (upcConflict) {
+      res.status(400).json({
+        error: "A product with this UPC already exists",
+        existingProduct: {
+          id: upcConflict.id,
+          name: upcConflict.name,
+          upc: upcConflict.upc,
+        },
+      });
+      return;
+    }
+  }
   const id = randomUUID();
   try {
-    getDb()
-      .insert(products)
+    db.insert(products)
       .values({
         id,
         userId: user.sub,
@@ -228,7 +274,7 @@ appRouter.post("/products", async (req, res) => {
     }
     throw err;
   }
-  const created = getDb().select().from(products).where(eq(products.id, id)).get();
+  const created = db.select().from(products).where(eq(products.id, id)).get();
   res.status(201).json({ product: created ? serializeProduct(created) : null });
 });
 

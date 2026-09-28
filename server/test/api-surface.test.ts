@@ -11,6 +11,7 @@ type RouteLayer = { route?: { path: string; methods: Record<string, boolean> } }
 // Mirrors the "HTTP API (app)" table in docs/backend-design.md.
 const EXPECTED_ROUTES = [
   "POST /products/upc-lookup",
+  "POST /products/name-lookup",
   "GET /products",
   "POST /products",
   "GET /products/:id",
