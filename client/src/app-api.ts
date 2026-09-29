@@ -60,6 +60,17 @@ export type UpcResult = {
   listingUrl: string | null;
 };
 
+/** Open Food Facts name-search hit; UPC may be absent. */
+export type NameLookupResult = {
+  name: string;
+  brand: string;
+  imageUrl: string;
+  ingredients: string;
+  nutrition: Record<string, unknown>;
+  upc: string | null;
+  listingUrl: string | null;
+};
+
 export function listProducts() {
   return api<{ products: Product[] }>("/api/products");
 }
@@ -122,6 +133,13 @@ export function lookupUpc(upc: string) {
   return api<{ result: UpcResult }>("/api/products/upc-lookup", {
     method: "POST",
     body: JSON.stringify({ upc }),
+  });
+}
+
+export function lookupByName(query: string) {
+  return api<{ results: NameLookupResult[] }>("/api/products/name-lookup", {
+    method: "POST",
+    body: JSON.stringify({ query }),
   });
 }
 

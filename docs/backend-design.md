@@ -55,14 +55,14 @@ server/src/
   db/index.ts           SQLite open + CREATE TABLE
   routes/auth.ts        /api/auth handlers
   routes/app.ts         products, stores, Diet profiles, shopping
-  ingestion/openFoodFacts.ts  UPC lookup (Open Food Facts)
+  ingestion/openFoodFacts.ts  UPC / name lookup (Open Food Facts)
   auth/password.ts      Argon2id hash/verify
   auth/email.ts         normalize + HMAC
   auth/jwt.ts           access/refresh JWTs
   auth/cookies.ts       cookie flags and names
   auth/session.ts       issue both tokens
   appEnv.ts             local | production | test
-  domain/               glossary rules (mark, store location, UPC, Nutrients)
+  domain/               glossary rules (mark, store location, UPC, Product name, Nutrients)
 
 shared/src/
   nutrients.ts          Nutrition Facts slice of Open Food Facts ids (@foodpocalypse/domain)
@@ -147,8 +147,9 @@ Base path: `/api`. Every route below requires the `fp_access` cookie and answers
 | Method | Path | Success | Body / notes |
 | --- | --- | --- | --- |
 | POST | `/products/upc-lookup` | 200 `{ result }` | `{ upc }`. 400 `Enter a valid UPC` before any external call; 404 when Open Food Facts has no Product; 502 when the lookup is unavailable. `nutrition` keys are OFF ids from the Nutrition Facts slice |
+| POST | `/products/name-lookup` | 200 `{ results }` | `{ query }`. 400 `Enter a search query` before any external call; searches Open Food Facts via Search-a-licious (`search.openfoodfacts.org`); empty matches → `[]`; 502 when the lookup is unavailable. Each result matches upc-lookup shape (`upc` may be `null` when OFF has no valid GS1 code). `nutrition` keys are OFF ids from the Nutrition Facts slice |
 | GET | `/products` | 200 `{ products }` | each Product carries `storeIds` and raw `ratings` |
-| POST | `/products` | 201 `{ product }` | `{ name, upc?, brand?, ingredients?, nutrition?, sourceType?, imageUrl?, notes?, listingUrl? }`. A supplied UPC is parsed and stored normalized: 400 `Enter a valid UPC` when it is not a GS1 code, 400 on a duplicate |
+| POST | `/products` | 201 `{ product }` | `{ name, upc?, brand?, ingredients?, nutrition?, sourceType?, imageUrl?, notes?, listingUrl? }`. Name is unique per User after trim/case-fold (400 `A product with this name already exists` + `existingProducts`). A supplied UPC is parsed and stored normalized: 400 `Enter a valid UPC` when it is not a GS1 code; 400 on a duplicate UPC with `existingProduct` |
 | GET | `/products/:id` | 200 `{ product, stores, unlinkedStores, ratings, dietProfiles }` | `ratings` are filtered to active Diet profiles with a visible mark |
 | PATCH | `/products/:id` | 200 `{ product }` | `{ listingUrl }` only; `null` clears it |
 | POST | `/products/:id/stores` | 204 | `{ storeId }`. Records an Availability |

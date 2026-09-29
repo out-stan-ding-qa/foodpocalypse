@@ -1,11 +1,25 @@
 export type Account = { id: string; email?: string };
 
-async function parseError(res: Response): Promise<string> {
+export class ApiError extends Error {
+  status: number;
+  body: Record<string, unknown>;
+
+  constructor(status: number, body: Record<string, unknown>) {
+    const message =
+      typeof body.error === "string" && body.error ? body.error : "Request failed";
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.body = body;
+  }
+}
+
+async function parseErrorBody(res: Response): Promise<Record<string, unknown>> {
   try {
-    const body = (await res.json()) as { error?: string };
-    return body.error || "Request failed";
+    const body = (await res.json()) as unknown;
+    return body && typeof body === "object" ? (body as Record<string, unknown>) : {};
   } catch {
-    return "Request failed";
+    return {};
   }
 }
 
@@ -40,7 +54,7 @@ export async function api<T>(
   }
 
   if (!res.ok) {
-    throw new Error(await parseError(res));
+    throw new ApiError(res.status, await parseErrorBody(res));
   }
 
   return (await res.json()) as T;
