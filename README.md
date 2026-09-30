@@ -1,6 +1,12 @@
 # Foodpocalypse
 
-A personal diet and grocery assistant for one person. Sign-in is Email and Password.
+A personal diet and grocery assistant for one person. Sharing a list, pantry, or household is out of scope. Meals, recipes, and meal planning are out of scope.
+
+The User saves Products, keeps Diet profiles, sees Recommendations (and can set Ratings that override them), and maintains one Shopping list. Domain language lives in [`CONTEXT.md`](./CONTEXT.md).
+
+## Account management
+
+Foodpocalypse models a single User — not a household. The same User is reached from any device by signing in. Sign-in is Email and Password only: every User has both so a new device can find them ([ADR 0002](./docs/adr/0002-password-required.md)). Email is the lookup key and does not change. Passkeys and WebAuthn are out of scope; Password is how identity works across devices, and a Passkey path would fight that model and the test plan ([ADR 0003](./docs/adr/0003-no-passkeys.md)).
 
 ## Run
 
