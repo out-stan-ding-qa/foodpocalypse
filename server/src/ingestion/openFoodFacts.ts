@@ -40,8 +40,9 @@ const OFF_HEADERS = {
   Accept: "application/json",
 } as const;
 
-const OFF_FIELDS = [
-  "status",
+const OFF_FETCH_TIMEOUT_MS = 8_000;
+
+const OFF_PRODUCT_FIELDS = [
   "product_name",
   "product_name_en",
   "abbreviated_product_name",
@@ -51,7 +52,12 @@ const OFF_FIELDS = [
   "image_front_url",
   "ingredients_text",
   "nutriments",
-].join(",");
+] as const;
+
+const OFF_FIELDS = ["status", ...OFF_PRODUCT_FIELDS].join(",");
+
+/** Search-a-licious field projection for Capture name drafts (includes barcode). */
+const NAME_SEARCH_FIELDS = ["code", ...OFF_PRODUCT_FIELDS].join(",");
 
 const NAME_SEARCH_PAGE_SIZE = 10;
 
@@ -86,7 +92,7 @@ export async function lookupByUpc(upc: string): Promise<UpcLookup> {
   try {
     response = await fetch(
       `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(upc)}.json?fields=${OFF_FIELDS}`,
-      { headers: OFF_HEADERS },
+      { headers: OFF_HEADERS, signal: AbortSignal.timeout(OFF_FETCH_TIMEOUT_MS) },
     );
   } catch {
     return { status: "unavailable" };
@@ -133,12 +139,13 @@ export async function lookupByName(query: string): Promise<NameLookup> {
   const params = new URLSearchParams({
     q: query,
     page_size: String(NAME_SEARCH_PAGE_SIZE),
+    fields: NAME_SEARCH_FIELDS,
   });
   let response: Response;
   try {
     response = await fetch(
       `https://search.openfoodfacts.org/search?${params.toString()}`,
-      { headers: OFF_HEADERS },
+      { headers: OFF_HEADERS, signal: AbortSignal.timeout(OFF_FETCH_TIMEOUT_MS) },
     );
   } catch {
     return { status: "unavailable" };
