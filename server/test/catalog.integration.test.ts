@@ -297,6 +297,24 @@ describe("catalog HTTP", () => {
     assert.equal(body.error, "UPC lookup is unavailable");
   });
 
+  it("maps an aborted Open Food Facts UPC fetch to unavailable", async () => {
+    let sawAbortSignal = false;
+    stubOpenFoodFacts(async (_input, init) => {
+      sawAbortSignal = init?.signal instanceof AbortSignal;
+      throw new DOMException("The operation was aborted", "AbortError");
+    });
+
+    const res = await server.request("/api/products/upc-lookup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ upc: "3017620422003" }),
+    });
+    const body = (await res.json()) as { error?: string };
+    assert.equal(sawAbortSignal, true);
+    assert.equal(res.status, 502);
+    assert.equal(body.error, "UPC lookup is unavailable");
+  });
+
   it("returns 404 when Open Food Facts has no Product for the UPC", async () => {
     stubOpenFoodFacts(
       async () =>
@@ -335,10 +353,28 @@ describe("catalog HTTP", () => {
   });
 
   it("looks up Products by name for a signed-in User", async () => {
-    stubOpenFoodFacts(async (input) => {
-      const url = String(input);
-      assert.match(url, /search\.openfoodfacts\.org\/search/i);
-      assert.match(url, /oat/i);
+    stubOpenFoodFacts(async (input, init) => {
+      const url = new URL(String(input));
+      assert.equal(url.hostname, "search.openfoodfacts.org");
+      assert.equal(url.pathname, "/search");
+      assert.match(url.searchParams.get("q") ?? "", /oat/i);
+      assert.equal(url.searchParams.get("page_size"), "10");
+      const fields = (url.searchParams.get("fields") ?? "").split(",").filter(Boolean);
+      for (const required of [
+        "code",
+        "product_name",
+        "product_name_en",
+        "abbreviated_product_name",
+        "generic_name",
+        "brands",
+        "image_url",
+        "image_front_url",
+        "ingredients_text",
+        "nutriments",
+      ]) {
+        assert.ok(fields.includes(required), `missing field projection: ${required}`);
+      }
+      assert.ok(init?.signal instanceof AbortSignal);
       return new Response(
         JSON.stringify({
           hits: [
@@ -377,6 +413,24 @@ describe("catalog HTTP", () => {
     assert.equal(body.results[0]?.upc, "012345678905");
     assert.equal(body.results[0]?.listingUrl, null);
     assert.equal(body.results[0]?.nutrition["energy-kcal"], 48);
+  });
+
+  it("maps an aborted Open Food Facts name-search fetch to unavailable", async () => {
+    let sawAbortSignal = false;
+    stubOpenFoodFacts(async (_input, init) => {
+      sawAbortSignal = init?.signal instanceof AbortSignal;
+      throw new DOMException("The operation was aborted", "AbortError");
+    });
+
+    const res = await server.request("/api/products/name-lookup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query: "yogurt" }),
+    });
+    const body = (await res.json()) as { error?: string };
+    assert.equal(sawAbortSignal, true);
+    assert.equal(res.status, 502);
+    assert.equal(body.error, "Name lookup is unavailable");
   });
 
   it("returns an empty list when Open Food Facts has no name matches", async () => {
